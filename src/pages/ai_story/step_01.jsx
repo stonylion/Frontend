@@ -25,7 +25,6 @@ const Storystep01 = () => {
       </ProgressWrapper>
 
       <Content>
-        {/* 동화 분량 */}
         <Label>
           동화 분량 <Required>*</Required>
         </Label>
