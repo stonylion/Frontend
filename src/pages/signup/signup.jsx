@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
@@ -36,18 +36,14 @@ function Signup() {
 
     const handleSignup = async () => {
         try {
-            const response = await axios.post('http://localhost:8000/api/accounts/signup/', {
+            const response = await api.post('/api/accounts/signup/', {
                 username: id,
                 password: pw
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
             });
 
             console.log('회원가입 성공:', response.data);
 
-            localStorage.setItem('access', response.data.token.access_token);
+            localStorage.setItem('access_token', response.data.token.access_token);
             localStorage.setItem('refresh', response.data.token.refresh);
 
             navigate('/onboarding');
@@ -76,7 +72,7 @@ function Signup() {
         }
     }, [termsService, termsPrivacy, termsOptional]);
 
-    const isButtonActive = id && pw && pwConfirm && termsService && termsPrivacy;
+    const isButtonActive = id && pw && pwConfirm && termsService && termsPrivacy && !pwConfirmError;
 
     return(
         <>
