@@ -60,7 +60,7 @@ function App() {
       <GlobalStyle />
         <Router>
           <Routes>
-            <Route path="/" element={<PageWrapper orientation="portrait"><Signup /></PageWrapper>}/>
+            <Route path="/" element={<PageWrapper orientation="portrait"><Splash /></PageWrapper>}/>
 
             {/* 온보딩 페이지 */}
             <Route path="/onboarding" element={<PageWrapper orientation="portrait"><OnboardingIntro /></PageWrapper>} />
