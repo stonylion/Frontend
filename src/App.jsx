@@ -140,13 +140,14 @@ const Root = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;  
+  height: 100vh;
   background-color: #f5f5f5;
 `;
 
 const PageWrapper = styled.div`
-  width: ${({ orientation }) => (orientation === 'landscape' ? '798px' : '390px')};
-  height: ${({ orientation }) => (orientation === 'landscape' ? '390px' : '798px')};
+width: min(100%, ${({ orientation }) => orientation === 'landscape' ? '798px' : '390px'});
+height: min(100%, ${({ orientation }) => orientation === 'landscape' ? '390px' : '798px'});
+
   
   display: flex;
   flex-direction: column;
