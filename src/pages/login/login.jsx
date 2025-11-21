@@ -20,7 +20,7 @@ function Login() {
 
     const handleLogin = async () => {
         try {
-            const response = await api.post('/api/accounts/login/', {
+            const response = await api.post('api/accounts/login/', {
                 username: id,
                 password: pw
             });
@@ -28,7 +28,7 @@ function Login() {
             console.log('로그인 성공:', response.data);
 
             localStorage.setItem('access_token', response.data.token.access_token);
-            localStorage.setItem('refresh', response.data.token.access_token);
+            localStorage.setItem('refresh', response.data.token.refresh_token);
 
             navigate('/home');
         } catch (error) {

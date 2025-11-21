@@ -1,32 +1,17 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import BottomBar from '../../components/Bottom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Home() {
     const navigate = useNavigate();
 
-    const kidsData = [
-        {
-            id: 1,
-            name: '아이 1',
-            avatar: '/icons/avatar1.svg',
-        },
-        {
-            id: 2,
-            name: '아이 2',
-            avatar: '/icons/avatar2.svg',
-        },
-        {
-            id: 3,
-            name: '아이 3',
-            avatar: '/icons/avatar3.svg',
-        },
-    ];
+    const [kidsData, setKidsData] = useState([]);
 
     const recentHistory = [
-        { title: '빨간망토', time: '3:36', img: '/icons/book.svg' },
-        { title: '빨간망토', time: '3:36', img: '/icons/book.svg' },
+        { id: 1, title: '꿈꾸는 코스모스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
+        { id: 2, title: '수박 수영장', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
     ];
 
     const myStories = [
@@ -36,12 +21,7 @@ function Home() {
         { id: 4, title: '충성스런 개스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
     ];
 
-    const recommendedStories = [
-        { id: 1, title: '강아지똥', min: '3~4분', img: '/imges/created_story.svg' },
-        { id: 2, title: '선녀와 나무꾼', min: '3~4분', img: '/imges/created_story.svg' },
-        { id: 3, title: '책 먹는 여우', min: '3~4분', img: '/imges/created_story.svg' },
-        { id: 4, title: '이상한 나라의 앨리스', min: '3~4분', img: '/imges/created_story.svg' }
-    ];
+    const [recommendedStories, setRecommendedStories] = useState([]);
 
     const reWriteStories = [
         { id: 1, title: '꿈꾸는 코스모스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
@@ -54,7 +34,7 @@ function Home() {
     const [activeRecommendedId, setActiveRecommendedId] = useState(null);
     const [activeReWriteStoryId, setActiveReWriteStoryId] = useState(null);
 
-    const [selectedKid, setSelectedKid] = useState(kidsData[0]);
+    const [selectedKid, setSelectedKid] = useState(null);
     const [open, setOpen] = useState(false);
 
     const handleSelect = (kid) => {
@@ -66,7 +46,7 @@ function Home() {
         setActiveMyStoryId(activeMyStoryId === id ? null : id);
     };
 
-    const handleRecommendedClick = (id) => {
+    const handleRecommendedClick = (id) => {s
         setActiveRecommendedId(activeRecommendedId === id ? null : id);
     };
 
@@ -101,24 +81,67 @@ function Home() {
         setShowDeleteModal(false);
     };
 
+    useEffect(() => {
+        const fetchChildren = async () => {
+            try {
+                const response = await api.get('api/accounts/children/');
+                console.log("response.data:", response.data);
+                const children = response.data.children.map((kid, idx) => ({
+                    ...kid,
+                    avatar: `/icons/avatar${idx + 1}.svg`
+                }));
+
+                setKidsData(children);
+
+                const activeKid = children.find(k => k.is_active);
+                if (activeKid) {
+                    setSelectedKid(activeKid);
+                }
+            } catch (e) {
+                console.error('아이 목록 조회 실패:', e);
+            }
+        };
+
+        fetchChildren();
+    }, []);
+
+    useEffect(() => {
+        const fetchRecommendedStories = async () => {
+            try {
+                const response = await api.get('api/story/', { params: { category: 'classic' } });
+                console.log(response);
+
+                console.log("추천 명작 동화:", response.data);
+
+                setRecommendedStories(response.data);
+            } catch (e) {
+                console.error("명작 조회 실패:", e);
+            }
+        };
+
+        fetchRecommendedStories();
+    }, []);
+
     return (
         <>
         <Logo>
             <img src='/icons/logo_home.svg' />
 
-            <img
-                src={selectedKid.avatar}
-                width={40}
-                onClick={() => setOpen(!open)}
-                style={{ border: "1px solid #f1f1f1", borderRadius: "99px"}}
-            />
+            {selectedKid && (
+                <img
+                    src={selectedKid.avatar}
+                    width={40}
+                    onClick={() => setOpen(!open)}
+                    style={{ border: "1px solid #f1f1f1", borderRadius: "99px"}}
+                />
+            )}
 
             <Dropdown open={open}>
                 {kidsData.map((kid) => (
                     <DropdownItem
                         key={kid.id}
                         onClick={() => handleSelect(kid)}
-                        $selected={selectedKid.id === kid.id}
+                        $selected={selectedKid?.id === kid.id}
                     >
                         {kid.name}
                         {selectedKid.id === kid.id &&
