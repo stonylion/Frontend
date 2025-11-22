@@ -46,7 +46,7 @@ function Home() {
         setActiveMyStoryId(activeMyStoryId === id ? null : id);
     };
 
-    const handleRecommendedClick = (id) => {s
+    const handleRecommendedClick = (id) => {
         setActiveRecommendedId(activeRecommendedId === id ? null : id);
     };
 
@@ -109,7 +109,6 @@ function Home() {
         const fetchRecommendedStories = async () => {
             try {
                 const response = await api.get('api/story/', { params: { category: 'classic' } });
-                console.log(response);
 
                 console.log("추천 명작 동화:", response.data);
 

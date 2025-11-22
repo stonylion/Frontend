@@ -1,22 +1,24 @@
+import api from '../../api/axios';
 import styled, { css } from 'styled-components';
 import Header from '../../components/Header';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Button from '../../components/Button';
 
 function MypageKid() {
     const navigate = useNavigate();
+    const { child_id } = useParams();
 
-    const mockUserData = {
-        nickname: '유이진',
-        birth: '23.05.08',
-        avatar: '/icons/avatar2.svg',
-        gender: 'male',
-    }
+    const avatarMap = {
+        child1: '/icons/avatar1.svg',
+        child2: '/icons/avatar2.svg',
+        child3: '/icons/avatar3.svg',
+        child4: '/icons/avatar4.svg',
+    };
 
     const [nickname, setNickname] = useState('');
     const [birth, setBirth] = useState('');
-    const [seledtedAvatar, setSelectedAvatar] = useState('/icons/avatar1.svg')
+    const [seledtedAvatar, setSelectedAvatar] = useState(avatarMap.child1);
     const [seledtedGender, setSelectedGender] = useState('female');
 
     const [showToastModal, setShowToastModal] = useState(false);
@@ -24,13 +26,33 @@ function MypageKid() {
     const [showBackModal, setShowBackModal] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
 
-    const handleSave = () => {
-        setShowToastModal(true);
-        setIsSaved(true);
+    const handleSave = async () => {
+        try {
+            const formattedBirth = birth.replace(/\./g, '-');
+
+            const payload = {
+                name: nickname,
+                birth_date: formattedBirth,
+                gender: seledtedGender === 'female' ? 'F' : 'M',
+                child_image_code: Object.keys(avatarMap).find(key => avatarMap[key] === seledtedAvatar)
+            };
+
+            const response = await api.put(`/api/accounts/child/${child_id}/`, payload);
+            console.log("아이 정보 수정 성공:", response.data);
+
+            setNickname(nickname);
+            setBirth(birth);
+            setSelectedGender(seledtedGender);
+            setSelectedAvatar(seledtedAvatar);
+            setShowToastModal(true);
+            setIsSaved(true);
     
-        setTimeout(() => {
-            setShowToastModal(false);
-        }, 1000);
+            setTimeout(() => {
+                setShowToastModal(false);
+            }, 1000);
+        } catch (e) {
+            console.error("아이 정보 등록 실패:", e);
+        }
     };
     
     const handleBack = () => {
@@ -54,23 +76,28 @@ function MypageKid() {
         navigate('/mypage');
     };
 
+    const avatars = Object.values(avatarMap);
+
+    const isButtonActive =
+        (nickname ?? '').trim().length > 0 &&
+        (birth ?? '').trim().length > 0;
+
     useEffect(() => {
-        if (mockUserData) {
-            setNickname(mockUserData.nickname || '');
-            setBirth(mockUserData.birth || '');
-            setSelectedGender(mockUserData.gender || '');
-            setSelectedAvatar(mockUserData.avatar || '/icons/avatar1.svg');
-        }
-    }, []);
+        const fetchMypageKid = async () => {
+            try {
+                const response = await api.get(`/api/accounts/child/detail/${child_id}/`);
+                console.log("아이 정보 조회:", response.data);
 
-    const avatars = [
-        '/icons/avatar1.svg',
-        '/icons/avatar2.svg',
-        '/icons/avatar3.svg',
-        '/icons/avatar4.svg',
-    ]
-
-    const isButtonActive = nickname.trim().length > 0 && birth.trim().length > 0;
+                setNickname(response.data.name || '');
+                setBirth(response.data.birth_date || '');
+                setSelectedGender(response.data.gender === 'F' ? 'female' : 'male');
+                setSelectedAvatar(avatarMap[response.data.child_image_code] || avatarMap.child1);
+            } catch (e) {
+                console.error("데이터 조회 실패:", e);
+            }
+        };
+        fetchMypageKid();
+    }, [child_id]);
 
     return (
         <Wrapper>
@@ -83,7 +110,7 @@ function MypageKid() {
         <Contents>
             <AvatarContainer>
                 <SelectedAvatar>
-                    <img src={seledtedAvatar} />
+                    {seledtedAvatar && <img src={seledtedAvatar} />}
                 </SelectedAvatar>
                 <AvatarList>
                     {avatars.map((src, index) => (
@@ -91,7 +118,7 @@ function MypageKid() {
                             key={index}
                             $isSelected={seledtedAvatar === src}
                             onClick={() => setSelectedAvatar(src)}
-                            aria-pressed= {setSelectedAvatar === src}
+                            aria-pressed= {seledtedAvatar === src}
                             aria-label={`아바타 ${index + 1}`}
                         >
                             <img src={src} />
@@ -104,7 +131,7 @@ function MypageKid() {
                 <InputLabel>이름</InputLabel>
                 <Input
                     type='text'
-                    value={nickname}
+                    value={nickname || ''}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder='이름 입력'
                     $filled={nickname !== ''}
@@ -115,7 +142,7 @@ function MypageKid() {
                 <InputLabel>출생연도</InputLabel>
                 <Input
                     type='text'
-                    value={birth}
+                    value={birth || ''}
                     onChange={(e) => setBirth(e.target.value)}
                     placeholder='출생연도 입력'
                     $filled={birth !== ''}
