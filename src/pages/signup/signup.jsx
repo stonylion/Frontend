@@ -41,7 +41,7 @@ function Signup() {
                 password: pw
             });
 
-            const token = response.data;
+            const token = response.data.token;
 
             console.log('회원가입 성공:', response.data);
 
@@ -50,7 +50,7 @@ function Signup() {
 
             navigate('/onboarding');
         } catch (error) {
-            console.error('회원가입 실패:', error);
+            console.error('회원가입 실패:', error.response.data);
 
             if (error.response?.status === 400) {
                 setIdError(true);
