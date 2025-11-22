@@ -1,83 +1,26 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import BottomBar from '../../components/Bottom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Mylib() {
     const navigate = useNavigate();
 
     const [activeBookId, setActiveBookId] = useState(null);
-
     const [filter, setFilter] = useState('전체');
-
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-    const books = [
-        { id: 1, title: '빨간망토', viewedAt: '25.10.27', createdAt: '25.09.01', min: '3~4분', bookmark: "제작", img: '/icons/book.svg', progress: 80 },
-        { id: 2, title: '성냥팔이 소녀', viewedAt: '25.10.25', createdAt: '25.10.15', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 30 },
-        { id: 3, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.99.10', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 50 },
-        { id: 4, title: '미운오리새끼', viewedAt: '25.10.29', createdAt: '25.09.10', min: '3~4분', bookmark: "확장", img: '/icons/book.svg', progress: 10 },
-        { id: 5, title: '빨간망토', viewedAt: '25.10.24', createdAt: '25.11.01', min: '3~4분', bookmark: "제작", img: '/icons/book.svg', progress: 80 },
-        { id: 6, title: '성냥팔이 소녀', viewedAt: '25.10.20', createdAt: '25.11.15', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 30 },
-        { id: 7, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.10.10', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 50 },
-        { id: 8, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.11.10', min: '3~4분', bookmark: "확장", img: '/icons/book.svg', progress: 10 },
-        { id: 9, title: '빨간망토', viewedAt: '25.10.27', createdAt: '25.10.01', min: '3~4분', bookmark: "제작", img: '/icons/book.svg', progress: 80 },
-        { id: 10, title: '성냥팔이 소녀', viewedAt: '25.10.25', createdAt: '25.10.15', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 30 },
-        { id: 11, title: '미운오리새끼', viewedAt: '25.10.18', createdAt: '25.10.10', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 50 },
-        { id: 12, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.12.10', min: '3~4분', bookmark: "확장", img: '/icons/book.svg', progress: 10 },
-    ];
+    const [books, setBooks] = useState([]);
+    const [sortType, setSortType] = useState('recentView');
+    const [open, setOpen] = useState(false);
 
     const handleCardClick = (id) => {
       setActiveBookId(id === activeBookId ? null : id);
     };
 
-    const [sortType, setSortType] = useState('recentView');
-
-    const parseDate = (str) => {
-      const [yy, mm, dd] = str.split('.').map(Number);
-      return new Date(2000 + yy, mm - 1, dd); // 25 -> 2025
-    };
-
-    const sortedBooks = [...books]
-      .filter((book) => filter === '전체' || book.bookmark === filter)
-      .sort((a, b) => {
-        // 최근 시청순: viewedAt 내림차순
-        if (sortType === 'recentView') {
-          return parseDate(b.viewedAt) - parseDate(a.viewedAt);
-        }
-
-        // 최근 제작순
-        if (sortType === 'recentCreate') {
-          // 전체 필터 + 최근 제작순
-          if (filter === '전체') {
-            // 둘 다 명작이면 가나다순
-            if (a.bookmark === '명작' && b.bookmark === '명작') {
-              return a.title.localeCompare(b.title, 'ko');
-            }
-            // a가 명작이고 b가 명작이 아니면 a를 뒤로
-            if (a.bookmark === '명작' && b.bookmark !== '명작') return 1;
-            if (a.bookmark !== '명작' && b.bookmark === '명작') return -1;
-            // 나머지는 최근 제작순
-            return parseDate(b.createdAt) - parseDate(a.createdAt);
-          }
-
-          // 명작 필터 + 최근 제작순
-          if (filter === '명작') {
-            return a.title.localeCompare(b.title, 'ko');
-          }
-
-          // 나머지 필터 + 최근 제작순
-          return parseDate(b.createdAt) - parseDate(a.createdAt);
-        }
-
-        return 0;
-      });
-
-    const [open, setOpen] = useState(false);
-
     const viewScript = (book) => {
       navigate(`/mylib-script/${book.id}`, { state: { book } });
-    }
+    };
 
     const deleteBook = (book) => {
       console.log('삭제', book.title);
@@ -95,6 +38,67 @@ function Mylib() {
     const cancelDelete = () => {
         setShowDeleteModal(false);
     };
+
+    useEffect(() => {
+      const fetchBooks = async () => {
+        try {
+          let endpoint =
+            sortType === 'recentView'
+              ? '/api/mylibrary/recentread/'
+              : '/api/mylibrary/recentgenerated/';
+          
+          if (filter != '전체') {
+            const category =
+              filter === '제작' ? 'custom' :
+              filter === '명작' ? 'classic' :
+                'expand';
+            endpoint += `?category=${category}`;
+          }
+
+          const response = await api.get(endpoint);
+
+          const mapped = response.data.results.map(item => ({
+            id: item.story.id,
+            title: item.story.title,
+            min: item.story.runtime,
+            bookmark:
+              item.story.category === 'custom'
+                ? '제작'
+                : item.story.category === 'classic'
+                ? '명작'
+                : '확장',
+            viewedAt: item.last_viewed_time
+              ? item.last_viewed_time.slice(2, 10).replace(/-/g, '.')
+              : '',
+            createdAt: item.story.created_at
+              ? item.story.created_at.slice(2, 10).replace(/-/g, '.')
+              : '',
+            img: '/icons/book.svg',
+            progress: item.last_viewed_page
+              ? Math.floor((item.last_viewed_page / 10) * 100)
+              : 0
+          }));
+
+          setBooks(mapped);
+        } catch (e) {
+          console.error('내 서재 불러오기 실패:', e);
+        }
+      };
+
+      fetchBooks();
+    }, [filter, sortType]);
+
+    const createMylibraryRecord = async (storyId) => {
+  try {
+    const response = await api.get(`/api/story/${storyId}/pages/`);
+    console.log('기록 생성 완료:', response.data);
+  } catch (e) {
+    console.error('기록 생성 실패:', e);
+  }
+};
+
+// 예시: storyId가 1인 동화 기록 생성
+createMylibraryRecord(1);
 
     return (
         <>
@@ -115,7 +119,7 @@ function Mylib() {
         <MylibContainer>
           <SortHeader>
             <BookCount>
-              {sortedBooks.length}개
+              {books.length}개
             </BookCount>
             <SortMenu>
               <SortButton onClick={() => setOpen(!open)}>
@@ -129,11 +133,11 @@ function Mylib() {
             </SortMenu>
           </SortHeader>
 
-          {sortedBooks.length === 0 ? (
+          {books.length === 0 ? (
             <Empty><img src='/imges/empty3.svg' /></Empty>
           ) : (
             <BookGrid>
-              {sortedBooks.map((book) => (
+              {books.map((book) => (
                 <BookCard key={book.id} onClick={() => handleCardClick(book.id)}>
                   {activeBookId === book.id ? (
                     <OptionCard>

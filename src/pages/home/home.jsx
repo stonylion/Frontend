@@ -9,17 +9,9 @@ function Home() {
 
     const [kidsData, setKidsData] = useState([]);
 
-    const recentHistory = [
-        { id: 1, title: '꿈꾸는 코스모스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 2, title: '수박 수영장', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-    ];
+    const [recentHistory, setRecentHistory] = useState([]);
 
-    const myStories = [
-        { id: 1, title: '꿈꾸는 코스모스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 2, title: '수박 수영장', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 3, title: '초코파이', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 4, title: '충성스런 개스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-    ];
+    const [myStories, setMyStories] = useState([]);
 
     const [recommendedStories, setRecommendedStories] = useState([]);
 
@@ -37,9 +29,15 @@ function Home() {
     const [selectedKid, setSelectedKid] = useState(null);
     const [open, setOpen] = useState(false);
 
-    const handleSelect = (kid) => {
-        setSelectedKid(kid);
-        setOpen(false);
+    const handleSelect = async (kid) => {
+        try {
+            const response = await api.put(`api/accounts/child/${kid.child_id}/activate/`);
+            setSelectedKid(kid);
+            setOpen(false);
+            console.log("아이 활성화 변경 성공:", response.data);
+        } catch (e) {
+            console.error("아이 활성화 실패:", e);
+        }
     };
 
     const handleMyStoryClick = (id) => {
@@ -106,10 +104,39 @@ function Home() {
     }, []);
 
     useEffect(() => {
+        const fetchRecentHistory = async () => {
+            try {
+                const response = await api.get('api/mylibrary/recentread/');
+                console.log("최근 본 동화 조회 성공:", response.data);
+
+                setRecentHistory(response.data);
+            } catch (e) {
+                console.error("최근 본 동화 조회 실패:", e);
+            }
+        };
+
+        fetchRecentHistory();
+    }, []);
+
+    useEffect(() => {
+        const fetchMyStories = async () => {
+            try {
+                const response = await api.get('api/story/', { params: { category: 'custom' } });
+                console.log("제작 동화 조회 성공:", response.data);
+
+                setMyStories(response.data);
+            } catch (e) {
+                console.error("제작 동화 조회 실패:", e);
+            }
+        };
+
+        fetchMyStories();
+    }, []);
+
+    useEffect(() => {
         const fetchRecommendedStories = async () => {
             try {
                 const response = await api.get('api/story/', { params: { category: 'classic' } });
-
                 console.log("추천 명작 동화:", response.data);
 
                 setRecommendedStories(response.data);
@@ -138,12 +165,12 @@ function Home() {
             <Dropdown open={open}>
                 {kidsData.map((kid) => (
                     <DropdownItem
-                        key={kid.id}
+                        key={kid.child_id}
                         onClick={() => handleSelect(kid)}
-                        $selected={selectedKid?.id === kid.id}
+                        $selected={selectedKid?.child_id === kid.child_id}
                     >
                         {kid.name}
-                        {selectedKid.id === kid.id &&
+                        {selectedKid.child_id === kid.child_id &&
                             <Check>
                                 <img src='/icons/check-home.svg' width={15}/>
                             </Check>
@@ -233,10 +260,10 @@ function Home() {
                     <img src='/icons/right-part.svg' width={20} height={20} />
                 </StoryLabel>
                 <CreatedStoryScroll>
-                    {recommendedStories.map((story, index) => (
-                        <CreatedContainer key={index} onClick={() => handleRecommendedClick(story.id)}>
+                    {recommendedStories.map((story) => (
+                        <CreatedContainer key={story.id} onClick={() => handleRecommendedClick(story.id)}>
                             {activeRecommendedId === story.id ? (
-                                    <OptionCard 
+                                    <OptionCard
                                         $imgUrl={story.img}
                                         onClick={e => e.stopPropagation()}
                                     >
@@ -252,7 +279,7 @@ function Home() {
                                     </>
                                 )}
                             <CreatedTitle>{story.title}</CreatedTitle>
-                            <CreatedMin>{story.min}</CreatedMin>
+                            <CreatedMin>{story.runtime}</CreatedMin>
                         </CreatedContainer>
                     ))}
                 </CreatedStoryScroll>
