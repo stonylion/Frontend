@@ -41,10 +41,12 @@ function Signup() {
                 password: pw
             });
 
+            const token = response.data;
+
             console.log('회원가입 성공:', response.data);
 
-            localStorage.setItem('access_token', response.data.token.access_token);
-            localStorage.setItem('refresh', response.data.token.refresh);
+            localStorage.setItem('access_token', token.access_token);
+            localStorage.setItem('refresh', token.refresh);
 
             navigate('/onboarding');
         } catch (error) {
