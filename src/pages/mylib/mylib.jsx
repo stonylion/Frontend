@@ -13,30 +13,50 @@ function Mylib() {
     const [books, setBooks] = useState([]);
     const [sortType, setSortType] = useState('recentView');
     const [open, setOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const handleCardClick = (id) => {
       setActiveBookId(id === activeBookId ? null : id);
     };
 
-    const viewScript = (book) => {
-      navigate(`/mylib-script/${book.id}`, { state: { book } });
+    const playBook = async (book) => {
+        navigate(`/story-play/${book.id}`, { state: { book } });
     };
+    const viewScript = async (book) => {
+      try {
+        const response = await api.get(`/api/story/${book.story_id}/script/`);
+        console.log("스크립트 보기 성공:", response.data);
 
+        navigate(`/mylib-script/${book.story_id}`, { state: { book } });
+      } catch (e) {
+        console.error("스크립트 보기 실패:", e);
+      }
+    };
     const deleteBook = (book) => {
-      console.log('삭제', book.title);
+      setDeleteTarget(book);
       handleDelete();
     };
 
-        const handleDelete = () => {
-        setShowDeleteModal(true);
+    const handleDelete = () => {
+      setShowDeleteModal(true);
     };
+    const confirmDelete = async () => {
+      if (!deleteTarget) return;
 
-    const confirmDelete = () => {
+      try {
+        const response = await api.delete(`/api/mylibrary/${deleteTarget.library_id}/`);
+        console.log("동화 삭제 성공:", response.data);
+
+        setBooks(prev => prev.filter(b => b.library_id !== deleteTarget.library_id));
         setShowDeleteModal(false);
+        setDeleteTarget(null);
+      } catch (e) {
+        console.error("동화 삭제 실패:", e);
+      }
     };
-
     const cancelDelete = () => {
-        setShowDeleteModal(false);
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     };
 
     useEffect(() => {
@@ -51,7 +71,7 @@ function Mylib() {
             const category =
               filter === '제작' ? 'custom' :
               filter === '명작' ? 'classic' :
-                'expand';
+              filter === '확장' ? 'extended' : '';
             endpoint += `?category=${category}`;
           }
 
@@ -74,9 +94,7 @@ function Mylib() {
               ? item.story.created_at.slice(2, 10).replace(/-/g, '.')
               : '',
             img: '/icons/book.svg',
-            progress: item.last_viewed_page
-              ? Math.floor((item.last_viewed_page / 10) * 100)
-              : 0
+            progress: 0,
           }));
 
           setBooks(mapped);
@@ -88,6 +106,27 @@ function Mylib() {
       fetchBooks();
     }, [filter, sortType]);
 
+  useEffect(() => {
+    const fetchProgressForBooks = async () => {
+      const updatedBooks = await Promise.all(
+        books.map(async (book) => {
+          try {
+            const res = await api.post('/api/mylibrary/last-viewed/', {
+              story_id: book.story_id,
+              page_number: 0,
+            });
+            const lastPage = res.data.last_viewed_page || 0;
+            return { ...book, progress: Math.floor((lastPage / 10) * 100) };
+          } catch {
+            return { ...book, progress: 0 };
+          }
+        })
+      );
+      setBooks(updatedBooks);
+    };
+
+    if (books.length) fetchProgressForBooks();
+  }, [books]);
     /*
     const createMylibraryRecord = async (storyId) => {
   try {
