@@ -25,10 +25,12 @@ function Login() {
                 password: pw
             });
 
+            const { token } = response.data;
+
             console.log('로그인 성공:', response.data);
 
-            localStorage.setItem('access_token', response.data.token.access_token);
-            localStorage.setItem('refresh', response.data.token.refresh_token);
+            localStorage.setItem('access_token', token.access_token);
+            localStorage.setItem('refresh', token.refresh);
 
             navigate('/home');
         } catch (error) {

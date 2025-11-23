@@ -1,3 +1,4 @@
+import api from '../../api/axios';
 import styled, { css } from 'styled-components';
 import Header from '../../components/Header';
 import { useNavigate } from 'react-router-dom';
@@ -7,13 +8,15 @@ import Button from '../../components/Button';
 function Profile() {
     const navigate = useNavigate();
 
-    const mockUserData = {
-        userId: 'yerin06',
-        password: 'yerin1234',
-        avatar: '/icons/avatar2.svg',
-    }
+    const avatarMap = {
+        woman: "/icons/avatar-1.svg",
+        man: '/icons/avatar-2.svg',
+        grand1: '/icons/avatar-3.svg',
+        grand2: '/icons/avatar-4.svg',
+    };
 
     const [userId, setUserId] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [seledtedAvatar, setSelectedAvatar] = useState('/icons/avatar1.svg')
 
@@ -28,13 +31,28 @@ function Profile() {
     const [showToastModal, setShowToastModal] = useState(false);
     const [showBackModal, setShowBackModal] = useState(false);
 
-    const handleSave = () => {
-        setShowToastModal(true);
-        setIsSaved(true);
+    const handleSave = async () => {
+        if (password !== passwordConfirm) {
+            setPwError(true);
+            return;
+        }
 
-        setTimeout(() => {
-            setShowToastModal(false);
-        }, 1000);
+        try {
+            const payload = {
+                username: username,
+                password: password || undefined,
+                avatar_code: Object.keys(avatarMap).find(key => avatarMap[key] === seledtedAvatar)
+            };
+
+            const response = await api.put('/api/accounts/profile/update/', payload);
+            console.log('프로필 수정 결과:', response.data);
+
+            setShowToastModal(true);
+            setIsSaved(true);
+            setTimeout(() => setShowToastModal(false), 1000);
+        } catch (error) {
+            console.error('프로필 수정 실패:', error);
+        }
     };
 
     const handleBack = () => {
@@ -46,24 +64,29 @@ function Profile() {
     };
 
     useEffect(() => {
-        if (mockUserData) {
-            setUserId(mockUserData.userId || '');
-            setPassword(mockUserData.password || '');
-            setSelectedAvatar(mockUserData.avatar || '/icons/avatar1.svg');
-        }
+        const fetchMypageProfile = async () => {
+            try {
+                const response = await api.get('api/accounts/profile/');
+
+                console.log("프로필 데이터 조회:", response.data);
+
+                setUserId(response.data.user_id);
+                setUsername(response.data.username);
+                setSelectedAvatar(avatarMap[response.data.avatar_code] || avatarMap.woman);
+            } catch (e) {
+                console.error("데이터 조회 실패:", e);
+            }
+        };
+
+        fetchMypageProfile();
     }, []);
 
-    const avatars = [
-        '/icons/avatar-1.svg',
-        '/icons/avatar-2.svg',
-        '/icons/avatar-3.svg',
-        '/icons/avatar-4.svg',
-    ];
-
     const isButtonActive = 
-        userId.trim().length > 0 &&
+        username.trim().length > 0 &&
         password.trim().length > 0 &&
         password === passwordConfirm;
+
+    const avatars = Object.values(avatarMap);
 
     return (
         <Wrapper>
@@ -97,10 +120,10 @@ function Profile() {
                 <InputLabel>아이디</InputLabel>
                 <Input
                     type='text'
-                    value={userId}
+                    value={username}
                     onChange={(e) => setUserId(e.target.value)}
                     placeholder='아이디 입력'
-                    $filled={userId !== ''}
+                    $filled={username !== ''}
                 />
             </InputContainer>
 

@@ -1,3 +1,4 @@
+import api from '../../api/axios';
 import styled, { css } from 'styled-components';
 import Header from '../../components/Header';
 import { useNavigate } from 'react-router-dom';
@@ -22,8 +23,25 @@ function KidRegister() {
         }
     };
 
-    const handleRegister = () => {
-        setShowRegisterModal(true);
+    const handleRegister = async () => {
+        try {
+            const formattedBirth = birth.replace(/\./g, '-');
+
+            const payload = {
+                name: nickname,
+                birth_date: formattedBirth,
+                gender: seledtedGender === 'female' ? 'F' : 'M',
+                child_image_code: Object.keys(avatarMap).find(key => avatarMap[key] === seledtedAvatar)
+            };
+
+            const response = await api.post('api/accounts/child/', payload);
+            console.log("아이 정보 등록 성공:", response.data);
+
+            setShowRegisterModal(true);
+            setIsSaved(true);
+        } catch (e) {
+            console.error("아이 정보 등록 실패:", e);
+        }
     };
 
     const AddRegister = () => {
@@ -36,14 +54,16 @@ function KidRegister() {
         navigate('/mypage')
     };
 
-    const avatars = [
-        '/icons/avatar1.svg',
-        '/icons/avatar2.svg',
-        '/icons/avatar3.svg',
-        '/icons/avatar4.svg',
-    ];
+    const avatarMap = {
+        child1: '/icons/avatar1.svg',
+        child2: '/icons/avatar2.svg',
+        child3: '/icons/avatar3.svg',
+        child4: '/icons/avatar4.svg',
+    };
 
     const isButtonActive = nickname.trim().length > 0 && birth.trim().length > 0;
+
+    const avatars = Object.values(avatarMap);
 
     return (
         <Wrapper>
@@ -90,7 +110,7 @@ function KidRegister() {
                     type='text'
                     value={birth}
                     onChange={(e) => setBirth(e.target.value)}
-                    placeholder='출생연도를 입력해주세요.'
+                    placeholder='출생연도를 입력해주세요. (ex: yyyy.mm.dd)'
                     $filled={birth !== ''}
                 />
             </InputContainer>

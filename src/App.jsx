@@ -100,7 +100,7 @@ function App() {
             {/* 마이 페이지 */}
             <Route path='/mypage' element={<PageWrapper orientation="portrait"><Mypage /></PageWrapper>} />
             <Route path='/mypage-profile' element={<PageWrapper orientation="portrait"><Profile /></PageWrapper>} />
-            <Route path='/mypage-kid' element={<PageWrapper orientation="portrait"><MypageKid /></PageWrapper>} />
+            <Route path='/mypage-kid/:child_id' element={<PageWrapper orientation="portrait"><MypageKid /></PageWrapper>} />
             <Route path='/mypage-kid-register' element={<PageWrapper orientation="portrait"><KidRegister /></PageWrapper>} />
             <Route path='/mypage-support/:type' element={<PageWrapper orientation="portrait"><MypageSupport /></PageWrapper>} />
             <Route path='/mypage-kid-detail' element={<PageWrapper orientation="portrait"><MypageKidDetail /></PageWrapper>} />

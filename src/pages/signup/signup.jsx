@@ -41,14 +41,16 @@ function Signup() {
                 password: pw
             });
 
+            const token = response.data.token;
+
             console.log('회원가입 성공:', response.data);
 
-            localStorage.setItem('access_token', response.data.token.access_token);
-            localStorage.setItem('refresh', response.data.token.refresh);
+            localStorage.setItem('access_token', token.access_token);
+            localStorage.setItem('refresh', token.refresh);
 
             navigate('/onboarding');
         } catch (error) {
-            console.error('회원가입 실패:', error);
+            console.error('회원가입 실패:', error.response.data);
 
             if (error.response?.status === 400) {
                 setIdError(true);
