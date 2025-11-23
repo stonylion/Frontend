@@ -88,6 +88,7 @@ function Mylib() {
       fetchBooks();
     }, [filter, sortType]);
 
+    /*
     const createMylibraryRecord = async (storyId) => {
   try {
     const response = await api.get(`/api/story/${storyId}/pages/`);
@@ -99,7 +100,7 @@ function Mylib() {
 
 // 예시: storyId가 1인 동화 기록 생성
 createMylibraryRecord(1);
-
+*/
     return (
         <>
         <MylibHeader>내 서재</MylibHeader>

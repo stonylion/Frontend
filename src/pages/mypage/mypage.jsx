@@ -24,9 +24,16 @@ function Mypage() {
         setShowLogoutModal(true);
     };
 
-    const confirmLogout = () => {
-        setShowLogoutModal(false);
-        navigate('/intro');
+    const confirmLogout = async () => {
+        try {
+            const response = await api.post('/api/accounts/logout/');
+            console.log("로그아웃 성공:", response.data);
+
+            setShowLogoutModal(false);
+            navigate('/intro');
+        } catch (e) {
+            console.error("로그아웃 실패:", e);
+        }
     };
 
     const cancelLogout = () => {
@@ -37,9 +44,16 @@ function Mypage() {
         setShowDeleteModal(true);
     };
 
-    const confirmDelete = () => {
-        setShowDeleteModal(false);
-        navigate('/intro');
+    const confirmDelete = async () => {
+        try {
+            const response = await api.delete('/api/accounts/delete/');
+            console.log("계정 삭제 성공:", response.data);
+
+            setShowDeleteModal(false);
+            navigate('/intro');
+        } catch (e) {
+            console.error("계정 삭제 실패:", e);
+        }
     };
 
     const cancelDelete = () => {

@@ -7,6 +7,12 @@ import { useNavigate } from 'react-router-dom';
 function Home() {
     const navigate = useNavigate();
 
+    const categoryBadge = {
+        classic: '/icons/Bookmark-cream.svg',
+        custom: '/icons/Bookmark-black.svg',
+        extended: '/icons/Bookmark-yellow.svg',
+    };
+
     const [kidsData, setKidsData] = useState([]);
 
     const [recentHistory, setRecentHistory] = useState([]);
@@ -137,7 +143,7 @@ function Home() {
         const fetchRecommendedStories = async () => {
             try {
                 const response = await api.get('api/story/', { params: { category: 'classic' } });
-                console.log("추천 명작 동화:", response.data);
+                console.log("추천 명작 동화 조회 성공:", response.data);
 
                 setRecommendedStories(response.data);
             } catch (e) {
@@ -191,25 +197,28 @@ function Home() {
                     <img src='/icons/right-part.svg' width={20} height={20} />
                 </StoryLabel>
                 
-                {recentHistory.length === 0 ? (
-                    <Empty1><img src='/icons/empty1.svg' /></Empty1>
-                ) : (
+                {recentHistory?.results?.length === 0 ? (
                     <StoryScroll>
-                    {recentHistory.map((story, index) => (
-                        <HistoryContainer key={index}>
+                    {recentHistory?.results?.map((history) => (
+                        <HistoryContainer key={history.id}>
                             <Card>
-                                <img src={story.img} />
+                                <img src={history.story?.img} />
                                 <Badge>
-                                    <img src='/icons/Bookmark.svg' width={25}/>
+                                    <img
+                                        src={categoryBadge[history.story.category]}
+                                        width={25}
+                                    />
                                 </Badge>
                             </Card>
                             <TextBox>
-                                <StoryTitle>{story.title}</StoryTitle>
-                                <StoryTime>{story.time}</StoryTime>
+                                <StoryTitle>{history.story.title}</StoryTitle>
+                                <StoryTime>{history.story.runtime}</StoryTime>
                             </TextBox>
                         </HistoryContainer>
                     ))}
                     </StoryScroll>
+                ) : (
+                    <Empty1><img src='/icons/empty1.svg' /></Empty1>
                 )}
             </StoryContent>
 
@@ -223,8 +232,8 @@ function Home() {
                     <Empty2><img src='/icons/empty2.svg' /></Empty2>
                 ) : (
                     <CreatedStoryScroll>
-                    {myStories.map((story, index) => (
-                        <CreatedContainer key={index} onClick={() => handleMyStoryClick(story.id)}>
+                    {myStories.map((story) => (
+                        <CreatedContainer key={story.id} onClick={() => handleMyStoryClick(story.id)}>
                                 {activeMyStoryId === story.id ? (
                                     <OptionCard
                                         $imgUrl={story.img}
@@ -244,9 +253,9 @@ function Home() {
                                 )}
                             <CreatedTitle>{story.title}</CreatedTitle>
                             <CreatedMin>
-                                {story.min}
+                                {story.runtime}
                                 <Separator>|</Separator>
-                                {story.date}
+                                {story.created_at}
                             </CreatedMin>
                         </CreatedContainer>
                     ))}
@@ -451,9 +460,11 @@ const Card = styled.div`
     box-shadow: 2px 2px 5px 0 rgba(0, 0, 0, 0.10);
 
     img {
-        width: 80px;
-        height: 112px;
-        object-fit: contain;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        overflow: hidden;
+        border-radius: 10px;
     }
 `;
 
