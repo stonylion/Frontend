@@ -1,3 +1,4 @@
+import api from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
@@ -31,7 +32,31 @@ function Signup() {
         setTermsService(newState);
         setTermsPrivacy(newState);
         setTermsOptional(newState);
-    }
+    };
+
+    const handleSignup = async () => {
+        try {
+            const response = await api.post('/api/accounts/signup/', {
+                username: id,
+                password: pw
+            });
+
+            const token = response.data.token;
+
+            console.log('회원가입 성공:', response.data);
+
+            localStorage.setItem('access_token', token.access_token);
+            localStorage.setItem('refresh', token.refresh);
+
+            navigate('/onboarding');
+        } catch (error) {
+            console.error('회원가입 실패:', error.response.data);
+
+            if (error.response?.status === 400) {
+                setIdError(true);
+            }
+        }
+    };
 
     useEffect(() => {
         if (pwConfirm && pw !== pwConfirm) {
@@ -49,7 +74,7 @@ function Signup() {
         }
     }, [termsService, termsPrivacy, termsOptional]);
 
-    const isButtonActive = id && pw && pwConfirm && termsService && termsPrivacy;
+    const isButtonActive = id && pw && pwConfirm && termsService && termsPrivacy && !pwConfirmError;
 
     return(
         <>
@@ -177,7 +202,7 @@ function Signup() {
         <ButtonContainer>
             <Button
                 disabled={!isButtonActive}
-                onClick={() => navigate('/onboarding')}
+                onClick={handleSignup}
             >
                 다음
             </Button>

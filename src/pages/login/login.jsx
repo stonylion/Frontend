@@ -1,3 +1,4 @@
+import api from '../../api/axios';
 import Header from '../../components/Header';
 import styled, { css } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +17,31 @@ function Login() {
     const [showPw, setShowPw] = useState(false);
 
     const isButtonActive = id.trim().length > 0 && pw.trim().length > 0;
+
+    const handleLogin = async () => {
+        try {
+            const response = await api.post('api/accounts/login/', {
+                username: id,
+                password: pw
+            });
+
+            const { token } = response.data;
+
+            console.log('로그인 성공:', response.data);
+
+            localStorage.setItem('access_token', token.access_token);
+            localStorage.setItem('refresh', token.refresh);
+
+            navigate('/home');
+        } catch (error) {
+            console.error('로그인 실패:', error);
+
+            if (error.response?.status === 401) {
+                setIdError(true);
+                setPwError(true);
+            }
+        }
+    };
 
     return (
         <>
@@ -63,7 +89,7 @@ function Login() {
             <ButtonContainer>
                 <Button
                     disabled={!isButtonActive}
-                    onClick={() => navigate('/home')}
+                    onClick={handleLogin}
                 >
                     로그인
                 </Button>

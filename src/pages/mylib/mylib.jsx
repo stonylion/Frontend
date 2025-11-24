@@ -1,101 +1,112 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import BottomBar from '../../components/Bottom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Mylib() {
     const navigate = useNavigate();
 
     const [activeBookId, setActiveBookId] = useState(null);
-
     const [filter, setFilter] = useState('전체');
-
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [books, setBooks] = useState([]);
+    const [sortType, setSortType] = useState('recentView');
 
-    const books = [
-        { id: 1, title: '빨간망토', viewedAt: '25.10.27', createdAt: '25.09.01', min: '3~4분', bookmark: "제작", img: '/icons/book.svg', progress: 80 },
-        { id: 2, title: '성냥팔이 소녀', viewedAt: '25.10.25', createdAt: '25.10.15', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 30 },
-        { id: 3, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.99.10', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 50 },
-        { id: 4, title: '미운오리새끼', viewedAt: '25.10.29', createdAt: '25.09.10', min: '3~4분', bookmark: "확장", img: '/icons/book.svg', progress: 10 },
-        { id: 5, title: '빨간망토', viewedAt: '25.10.24', createdAt: '25.11.01', min: '3~4분', bookmark: "제작", img: '/icons/book.svg', progress: 80 },
-        { id: 6, title: '성냥팔이 소녀', viewedAt: '25.10.20', createdAt: '25.11.15', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 30 },
-        { id: 7, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.10.10', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 50 },
-        { id: 8, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.11.10', min: '3~4분', bookmark: "확장", img: '/icons/book.svg', progress: 10 },
-        { id: 9, title: '빨간망토', viewedAt: '25.10.27', createdAt: '25.10.01', min: '3~4분', bookmark: "제작", img: '/icons/book.svg', progress: 80 },
-        { id: 10, title: '성냥팔이 소녀', viewedAt: '25.10.25', createdAt: '25.10.15', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 30 },
-        { id: 11, title: '미운오리새끼', viewedAt: '25.10.18', createdAt: '25.10.10', min: '3~4분', bookmark: "명작", img: '/icons/book.svg', progress: 50 },
-        { id: 12, title: '미운오리새끼', viewedAt: '25.10.28', createdAt: '25.12.10', min: '3~4분', bookmark: "확장", img: '/icons/book.svg', progress: 10 },
-    ];
+    const SORT_API = {
+      recentView: '/api/mylibrary/recentread/',
+      recentGenerated: '/api/mylibrary/recentgenerated/',
+    };
+
+    const [open, setOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const handleCardClick = (id) => {
       setActiveBookId(id === activeBookId ? null : id);
     };
 
-    const [sortType, setSortType] = useState('recentView');
-
-    const parseDate = (str) => {
-      const [yy, mm, dd] = str.split('.').map(Number);
-      return new Date(2000 + yy, mm - 1, dd); // 25 -> 2025
+    const playBook = async (book) => {
+        navigate(`/story-play/${book.story.id}`, { state: { book } });
     };
 
-    const sortedBooks = [...books]
-      .filter((book) => filter === '전체' || book.bookmark === filter)
-      .sort((a, b) => {
-        // 최근 시청순: viewedAt 내림차순
-        if (sortType === 'recentView') {
-          return parseDate(b.viewedAt) - parseDate(a.viewedAt);
+    const viewScript = async (book) => {
+        console.log("viewScript story:", book);
+        try {
+            const response = await api.get(`/api/story/${book.story.id}/script/`);
+            console.log("스크립트 조회 성공:", response.data);
+
+            navigate(`/mylib-script/${book.story.id}`, { state: { story: book.story }});
+        } catch (e) {
+            console.error("스크립트 조회 실패:", e);
         }
-
-        // 최근 제작순
-        if (sortType === 'recentCreate') {
-          // 전체 필터 + 최근 제작순
-          if (filter === '전체') {
-            // 둘 다 명작이면 가나다순
-            if (a.bookmark === '명작' && b.bookmark === '명작') {
-              return a.title.localeCompare(b.title, 'ko');
-            }
-            // a가 명작이고 b가 명작이 아니면 a를 뒤로
-            if (a.bookmark === '명작' && b.bookmark !== '명작') return 1;
-            if (a.bookmark !== '명작' && b.bookmark === '명작') return -1;
-            // 나머지는 최근 제작순
-            return parseDate(b.createdAt) - parseDate(a.createdAt);
-          }
-
-          // 명작 필터 + 최근 제작순
-          if (filter === '명작') {
-            return a.title.localeCompare(b.title, 'ko');
-          }
-
-          // 나머지 필터 + 최근 제작순
-          return parseDate(b.createdAt) - parseDate(a.createdAt);
-        }
-
-        return 0;
-      });
-
-    const [open, setOpen] = useState(false);
-
-    const viewScript = (book) => {
-      navigate(`/mylib-script/${book.id}`, { state: { book } });
-    }
-
+    };
     const deleteBook = (book) => {
-      console.log('삭제', book.title);
+      setDeleteTarget(book);
       handleDelete();
     };
 
-        const handleDelete = () => {
-        setShowDeleteModal(true);
+    const handleDelete = () => {
+      setShowDeleteModal(true);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
+      if (!deleteTarget) return;
+
+      try {
+        await api.delete(`/api/mylibrary/${deleteTarget.id}/`);
+        console.log("동화 삭제 성공:", deleteTarget.story.title);
+
+        setBooks(prev => prev.filter(b => b.id !== deleteTarget.id));
+
         setShowDeleteModal(false);
-    };
+        setDeleteTarget(null);
 
+      } catch (e) {
+        console.error("동화 삭제 실패:", e);
+      }
+    };
     const cancelDelete = () => {
-        setShowDeleteModal(false);
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     };
 
+    useEffect(() => {
+      const fetchBooks = async () => {
+        try {
+          let endpoint = SORT_API[sortType];
+          
+          if (filter != '전체') {
+            const category =
+              filter === '제작' ? 'custom' :
+              filter === '명작' ? 'classic' :
+              filter === '확장' ? 'extended' : '';
+            endpoint += `?category=${category}`;
+          }
+
+          const response = await api.get(endpoint);
+
+          console.log("내서재 조회 성공:", response.data);
+
+          setBooks(response.data.results);
+        } catch (e) {
+          console.error('내 서재 불러오기 실패:', e);
+        }
+      };
+
+      fetchBooks();
+    }, [filter, sortType]);
+/*
+    const createMylibraryRecord = async (storyId) => {
+  try {
+    const response = await api.get(`/api/story/${storyId}/pages/`);
+    console.log('기록 생성 완료:', response.data);
+  } catch (e) {
+    console.error('기록 생성 실패:', e);
+  }
+};
+// 예시: storyId가 1인 동화 기록 생성
+createMylibraryRecord(1);
+*/
     return (
         <>
         <MylibHeader>내 서재</MylibHeader>
@@ -115,28 +126,33 @@ function Mylib() {
         <MylibContainer>
           <SortHeader>
             <BookCount>
-              {sortedBooks.length}개
+              {books.length}개
             </BookCount>
             <SortMenu>
               <SortButton onClick={() => setOpen(!open)}>
-                {sortType === 'recentView' ? '최근 시청 순' : '최근 제작 순'}
+                {sortType === 'recentView'
+                  ? '최근 시청 순'
+                  : '최근 제작 순'}
                 <img src={open ? '/icons/arrow-up.svg' : '/icons/arrow-down.svg'} />
               </SortButton>
               <Dropdown open={open}>
                 <li onClick={() => { setSortType('recentView'); setOpen(false); }}>최근 시청순</li>
-                <li onClick={() => { setSortType('recentCreate'); setOpen(false); }}>최근 제작순</li>
+                <li onClick={() => { setSortType('recentGenerated'); setOpen(false); }}>최근 제작순</li>
               </Dropdown>
             </SortMenu>
           </SortHeader>
 
-          {sortedBooks.length === 0 ? (
+          {books.length === 0 ? (
             <Empty><img src='/imges/empty3.svg' /></Empty>
           ) : (
             <BookGrid>
-              {sortedBooks.map((book) => (
+              {books.map((book) => (
                 <BookCard key={book.id} onClick={() => handleCardClick(book.id)}>
                   {activeBookId === book.id ? (
-                    <OptionCard>
+                    <OptionCard
+                      $imgUrl={book.story.img}
+                      onClick={e => e.stopPropagation()}
+                    >
                       <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveBookId(null); }}>×</CloseBtn>
                       <Option onClick={() => playBook(book)}>재생하기</Option>
                       <Option onClick={() => viewScript(book)}>스크립트 보기</Option>
@@ -145,17 +161,17 @@ function Mylib() {
                   ) : (
                     <>
                     <BookWrapper>
-                      <img src={book.img} alt={book.title} />
+                      <img src={book.story.img} />
                       <ProgressContainer>
-                        <ProgressFill style={{ width: `${book.progress}%` }} />
+                        <ProgressFill style={{ width: `${book.last_viewed_page && book.page_count ? (book.last_viewed_page / book.page_count) * 100 : 0}%` }} />
                       </ProgressContainer>
                     </BookWrapper>
                     <Badge>
                       <img
                         src={
-                          book.bookmark === '명작'
+                          book.story.category === 'classic'
                           ? '/icons/Bookmark-cream.svg'
-                          : book.bookmark === '확장'
+                          : book.story.category === 'extended'
                           ? '/icons/Bookmark-yellow.svg'
                           : '/icons/Bookmark-black.svg'
                         }
@@ -163,9 +179,9 @@ function Mylib() {
                     </Badge>
                     </>
                   )}
-                    <Title>{book.title}</Title>
+                    <Title>{book.story.title}</Title>
                     <ViewMin>
-                      {book.min}
+                      {book.story.runtime}
                     </ViewMin>
                   </BookCard>
                 ))}
@@ -332,7 +348,7 @@ const OptionCard = styled.div`
   width: 110px;
   height: 154px;
   border-radius: 12px;
-  background: url('/icons/click-card.svg') center / cover no-repeat; 
+  background: linear-gradient(180deg, #393939 0%, rgba(39, 34, 31, 0.70) 100%), url(${props => props.$imgUrl}) lightgray 50% / cover no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -341,6 +357,7 @@ const OptionCard = styled.div`
   font-weight: 800;
   position: relative;
   box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #dedede;
 `;
 
 const Option = styled.div`

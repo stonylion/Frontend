@@ -1,15 +1,21 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import BottomBar from '../../components/Bottom';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function Mypage() {
     const navigate = useNavigate();
 
-    const [kids] = useState([
-        { id: 1, name: '유이진', isActive: true },
-        { id: 2, name: '윤태하', isActive: false },
-    ]);
+    const [kids, setKids] = useState([]);
+    const [user, setUser] = useState(null);
+
+    const avatarMap = {
+        woman: "/icons/avatar-1.svg",
+        man: '/icons/avatar-2.svg',
+        grand1: '/icons/avatar-3.svg',
+        grand2: '/icons/avatar-4.svg',
+    };
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -18,9 +24,16 @@ function Mypage() {
         setShowLogoutModal(true);
     };
 
-    const confirmLogout = () => {
-        setShowLogoutModal(false);
-        navigate('/intro');
+    const confirmLogout = async () => {
+        try {
+            const response = await api.post('/api/accounts/logout/');
+            console.log("로그아웃 성공:", response.data);
+
+            setShowLogoutModal(false);
+            navigate('/intro');
+        } catch (e) {
+            console.error("로그아웃 실패:", e);
+        }
     };
 
     const cancelLogout = () => {
@@ -31,14 +44,38 @@ function Mypage() {
         setShowDeleteModal(true);
     };
 
-    const confirmDelete = () => {
-        setShowDeleteModal(false);
-        navigate('/intro');
+    const confirmDelete = async () => {
+        try {
+            const response = await api.delete('/api/accounts/delete/');
+            console.log("계정 삭제 성공:", response.data);
+
+            setShowDeleteModal(false);
+            navigate('/intro');
+        } catch (e) {
+            console.error("계정 삭제 실패:", e);
+        }
     };
 
     const cancelDelete = () => {
         setShowDeleteModal(false);
     };
+
+    useEffect(() => {
+        const fetchMypage = async () => {
+            try {
+                const response = await api.get('api/accounts/mypage/');
+
+                console.log("마이페이지 데이터 조회:", response.data);
+
+                setUser(response.data.user);
+                setKids(response.data.children);
+            } catch (e) {
+                console.error("데이터 조회 실패:", e);
+            }
+        };
+
+        fetchMypage();
+    }, []);
 
     return (
         <Wrapper>
@@ -47,10 +84,13 @@ function Mypage() {
         <Contents>
             <UserContainer>
                 <UserProfile>
-                    <img src='/icons/avatar-1.svg' />
+                    <img src={
+                        avatarMap[user?.avatar_code] || avatarMap.woman
+                    }
+                    />
                 </UserProfile>
                 <UserContent>
-                    <UserName>Ewha1234</UserName>
+                    <UserName>{user?.username}</UserName>
                     <UserId>부모/보호자</UserId>
                 </UserContent>
                 <UserEdit onClick={() => (navigate('/mypage-profile'))}>프로필 편집</UserEdit>
@@ -71,10 +111,10 @@ function Mypage() {
                 ) : (
                     <>
                         {kids.map((kid) => (
-                            <ModifyContent key={kid.id}>
+                            <ModifyContent key={kid.child_id}>
                                 <Name>
                                     {kid.name}
-                                    {kid.isActive && <ActiveDot />}
+                                    {kid.is_active && <ActiveDot />}
                                 </Name>
                                 <ArrowRightBtn onClick={() => navigate('/mypage-kid-detail')}>
                                     <img src='/icons/arrow-right-black.svg' width={16} />

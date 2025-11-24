@@ -1,90 +1,69 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import BottomBar from '../../components/Bottom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Home() {
     const navigate = useNavigate();
 
-    const kidsData = [
-        {
-            id: 1,
-            name: '아이 1',
-            avatar: '/icons/avatar1.svg',
-        },
-        {
-            id: 2,
-            name: '아이 2',
-            avatar: '/icons/avatar2.svg',
-        },
-        {
-            id: 3,
-            name: '아이 3',
-            avatar: '/icons/avatar3.svg',
-        },
-    ];
+    const categoryBadge = {
+        classic: '/icons/Bookmark-cream.svg',
+        custom: '/icons/Bookmark-black.svg',
+        extended: '/icons/Bookmark-yellow.svg',
+    };
 
-    const recentHistory = [
-        { title: '빨간망토', time: '3:36', img: '/icons/book.svg' },
-        { title: '빨간망토', time: '3:36', img: '/icons/book.svg' },
-    ];
+    const [kidsData, setKidsData] = useState([]);
 
-    const myStories = [
-        { id: 1, title: '꿈꾸는 코스모스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 2, title: '수박 수영장', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 3, title: '초코파이', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 4, title: '충성스런 개스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-    ];
-
-    const recommendedStories = [
-        { id: 1, title: '강아지똥', min: '3~4분', img: '/imges/created_story.svg' },
-        { id: 2, title: '선녀와 나무꾼', min: '3~4분', img: '/imges/created_story.svg' },
-        { id: 3, title: '책 먹는 여우', min: '3~4분', img: '/imges/created_story.svg' },
-        { id: 4, title: '이상한 나라의 앨리스', min: '3~4분', img: '/imges/created_story.svg' }
-    ];
-
-    const reWriteStories = [
-        { id: 1, title: '꿈꾸는 코스모스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 2, title: '수박 수영장', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 3, title: '초코파이', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-        { id: 4, title: '충성스런 개스', min: '3~4분', img: '/imges/created_story.svg', date: "25.10.02" },
-    ];
+    const [recentHistory, setRecentHistory] = useState();
+    const [myStories, setMyStories] = useState([]);
+    const [recommendedStories, setRecommendedStories] = useState([]);
+    const [reWriteStories, setReWriteStories] = useState([]);
 
     const [activeMyStoryId, setActiveMyStoryId] = useState(null);
     const [activeRecommendedId, setActiveRecommendedId] = useState(null);
     const [activeReWriteStoryId, setActiveReWriteStoryId] = useState(null);
 
-    const [selectedKid, setSelectedKid] = useState(kidsData[0]);
+    const [selectedKid, setSelectedKid] = useState(null);
     const [open, setOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] =useState(null);
 
-    const handleSelect = (kid) => {
-        setSelectedKid(kid);
-        setOpen(false);
+    const handleSelect = async (kid) => {
+        try {
+            const response = await api.put(`api/accounts/child/${kid.child_id}/activate/`);
+            setSelectedKid(kid);
+            setOpen(false);
+            console.log("아이 활성화 변경 성공:", response.data);
+        } catch (e) {
+            console.error("아이 활성화 실패:", e);
+        }
     };
 
     const handleMyStoryClick = (id) => {
         setActiveMyStoryId(activeMyStoryId === id ? null : id);
     };
-
     const handleRecommendedClick = (id) => {
         setActiveRecommendedId(activeRecommendedId === id ? null : id);
     };
-
     const handleReWriteStoryClick = (id) => {
         setActiveReWriteStoryId(activeReWriteStoryId === id? null : id);
     };
 
     const playBook = (story) => console.log('재생', story.title);
+    const viewScript = async (story) => {
+        try {
+            const response = await api.get(`/api/story/${story.id}/script/`);
+            console.log("스크립트 조회 성공:", response.data);
 
-    const viewScript = (story) => {
-        navigate(`/mylib-script/${story.id}`);
+            navigate(`/mylib-script/${story.id}`, { state: { story }});
+        } catch (e) {
+            console.error("스크립트 조회 실패:", e);
+        }
     };
-
     const deleteBook = (story) => {
-        console.log('삭제', story.title);
+        setDeleteTarget(story);
         handleDelete();
     };
-
     const reWrite = (story) => console.log('결말 확장하기', story.title);
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -92,36 +71,143 @@ function Home() {
     const handleDelete = () => {
         setShowDeleteModal(true);
     };
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
 
-    const confirmDelete = () => {
-        setShowDeleteModal(false);
+        try {
+            const response = await api.delete(`/api/mylibrary/${deleteTarget.id}/`);
+            console.log("동화 삭제 성공:", response.data);
+
+            setMyStories(prev => prev.filter(story => story.id !== deleteTarget.id));
+            setReWriteStories(prev => prev.filter(story => story.id !== deleteTarget.id));
+
+            setShowDeleteModal(false);
+            setDeleteTarget(null);
+        } catch (e) {
+            console.error("동화 삭제 실패:", e);
+        }
     };
-
     const cancelDelete = () => {
         setShowDeleteModal(false);
     };
+
+    useEffect(() => {
+        const fetchChildren = async () => {
+            try {
+                const response = await api.get('api/accounts/children/');
+                console.log("response.data:", response.data);
+                const children = response.data.children.map((kid, idx) => ({
+                    ...kid,
+                    avatar: `/icons/avatar${idx + 1}.svg`
+                }));
+
+                setKidsData(children);
+
+                const activeKid = children.find(k => k.is_active);
+                if (activeKid) {
+                    setSelectedKid(activeKid);
+                }
+            } catch (e) {
+                console.error('아이 목록 조회 실패:', e);
+            }
+        };
+
+        fetchChildren();
+    }, []);
+
+    useEffect(() => {
+        const fetchRecentHistory = async () => {
+            try {
+                const response = await api.get('/api/mylibrary/recentread/');
+                console.log("최근 본 동화 조회 성공:", response.data);
+
+                setRecentHistory(response.data);
+            } catch (e) {
+                console.error("최근 본 동화 조회 실패:", e);
+            }
+        };
+
+        fetchRecentHistory();
+    }, []);
+
+    useEffect(() => {
+        const fetchMyStories = async () => {
+            try {
+                const response = await api.get('/api/story/', { params: { category: 'custom' } });
+                console.log("제작 동화 조회 성공:", response.data);
+
+                setMyStories(response.data);
+            } catch (e) {
+                console.error("제작 동화 조회 실패:", e);
+            }
+        };
+
+        fetchMyStories();
+    }, []);
+
+    const formatDate = (createdAt) => {
+        const date = new Date(createdAt);
+        return (
+            String(date.getFullYear()).slice(2) + '.' +
+            String(date.getMonth() + 1).padStart(2, '0') + '.' +
+            String(date.getDate()).padStart(2, '0')
+        );
+    };
+
+    useEffect(() => {
+        const fetchRecommendedStories = async () => {
+            try {
+                const response = await api.get('/api/story/', { params: { category: 'classic' } });
+                console.log("추천 명작 동화 조회 성공:", response.data);
+
+                setRecommendedStories(response.data);
+            } catch (e) {
+                console.error("명작 조회 실패:", e);
+            }
+        };
+
+        fetchRecommendedStories();
+    }, []);
+
+    useEffect(() => {
+        const fetchReWriteStories = async () => {
+            try {
+                const response = await api.get('/api/story/', { params: { category: 'extended' } });
+                console.log("확장 동화 조회 성공:", response.data);
+
+                setReWriteStories(response.data);
+            } catch (e) {
+                console.error("확장 동화 조회 실패:", e);
+            }
+        };
+
+        fetchReWriteStories();
+    }, []);
+
 
     return (
         <>
         <Logo>
             <img src='/icons/logo_home.svg' />
 
-            <img
-                src={selectedKid.avatar}
-                width={40}
-                onClick={() => setOpen(!open)}
-                style={{ border: "1px solid #f1f1f1", borderRadius: "99px"}}
-            />
+            {selectedKid && (
+                <img
+                    src={selectedKid.avatar}
+                    width={40}
+                    onClick={() => setOpen(!open)}
+                    style={{ border: "1px solid #f1f1f1", borderRadius: "99px"}}
+                />
+            )}
 
             <Dropdown open={open}>
                 {kidsData.map((kid) => (
                     <DropdownItem
-                        key={kid.id}
+                        key={kid.child_id}
                         onClick={() => handleSelect(kid)}
-                        $selected={selectedKid.id === kid.id}
+                        $selected={selectedKid?.child_id === kid.child_id}
                     >
                         {kid.name}
-                        {selectedKid.id === kid.id &&
+                        {selectedKid.child_id === kid.child_id &&
                             <Check>
                                 <img src='/icons/check-home.svg' width={15}/>
                             </Check>
@@ -142,25 +228,28 @@ function Home() {
                     <img src='/icons/right-part.svg' width={20} height={20} />
                 </StoryLabel>
                 
-                {recentHistory.length === 0 ? (
-                    <Empty1><img src='/icons/empty1.svg' /></Empty1>
-                ) : (
+                {recentHistory?.results?.length > 0 ? (
                     <StoryScroll>
-                    {recentHistory.map((story, index) => (
-                        <HistoryContainer key={index}>
-                            <Card>
-                                <img src={story.img} />
-                                <Badge>
-                                    <img src='/icons/Bookmark.svg' width={25}/>
-                                </Badge>
-                            </Card>
-                            <TextBox>
-                                <StoryTitle>{story.title}</StoryTitle>
-                                <StoryTime>{story.time}</StoryTime>
-                            </TextBox>
-                        </HistoryContainer>
-                    ))}
+                        {recentHistory?.results?.map((history) => (
+                            <HistoryContainer key={history.id}>
+                                <Card>
+                                    <img src={history.story?.img} />
+                                    <Badge>
+                                        <img
+                                            src={categoryBadge[history.story.category]}
+                                            width={25}
+                                        />
+                                    </Badge>
+                                </Card>
+                                <TextBox>
+                                    <StoryTitle>{history.story.title}</StoryTitle>
+                                    <StoryTime>{history.story.runtime}</StoryTime>
+                                </TextBox>
+                            </HistoryContainer>
+                        ))}
                     </StoryScroll>
+                ) : (
+                    <Empty1><img src='/icons/empty1.svg' /></Empty1>
                 )}
             </StoryContent>
 
@@ -174,8 +263,8 @@ function Home() {
                     <Empty2><img src='/icons/empty2.svg' /></Empty2>
                 ) : (
                     <CreatedStoryScroll>
-                    {myStories.map((story, index) => (
-                        <CreatedContainer key={index} onClick={() => handleMyStoryClick(story.id)}>
+                    {myStories.map((story) => (
+                        <CreatedContainer key={story.id} onClick={() => handleMyStoryClick(story.id)}>
                                 {activeMyStoryId === story.id ? (
                                     <OptionCard
                                         $imgUrl={story.img}
@@ -189,15 +278,15 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img} alt={story.title} />
+                                            <img src={story.img} />
                                         </BookWrapper>
                                     </>
                                 )}
                             <CreatedTitle>{story.title}</CreatedTitle>
                             <CreatedMin>
-                                {story.min}
+                                {story.runtime}
                                 <Separator>|</Separator>
-                                {story.date}
+                                {formatDate(story.created_at)}
                             </CreatedMin>
                         </CreatedContainer>
                     ))}
@@ -211,10 +300,10 @@ function Home() {
                     <img src='/icons/right-part.svg' width={20} height={20} />
                 </StoryLabel>
                 <CreatedStoryScroll>
-                    {recommendedStories.map((story, index) => (
-                        <CreatedContainer key={index} onClick={() => handleRecommendedClick(story.id)}>
+                    {recommendedStories.map((story) => (
+                        <CreatedContainer key={story.id} onClick={() => handleRecommendedClick(story.id)}>
                             {activeRecommendedId === story.id ? (
-                                    <OptionCard 
+                                    <OptionCard
                                         $imgUrl={story.img}
                                         onClick={e => e.stopPropagation()}
                                     >
@@ -225,12 +314,12 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img} alt={story.title} />
+                                            <img src={story.img} />
                                         </BookWrapper>
                                     </>
                                 )}
                             <CreatedTitle>{story.title}</CreatedTitle>
-                            <CreatedMin>{story.min}</CreatedMin>
+                            <CreatedMin>{story.runtime}</CreatedMin>
                         </CreatedContainer>
                     ))}
                 </CreatedStoryScroll>
@@ -246,8 +335,8 @@ function Home() {
                     <Empty2><img src='/icons/empty3.svg' /></Empty2>
                 ) : (
                     <CreatedStoryScroll>
-                    {reWriteStories.map((story, index) => (
-                        <CreatedContainer key={index} onClick={() => handleReWriteStoryClick(story.id)}>
+                    {reWriteStories.map((story) => (
+                        <CreatedContainer key={story.id} onClick={() => handleReWriteStoryClick(story.id)}>
                                 {activeReWriteStoryId === story.id ? (
                                     <OptionCard
                                         $imgUrl={story.img}
@@ -261,15 +350,15 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img} alt={story.title} />
+                                            <img src={story.img} />
                                         </BookWrapper>
                                     </>
                                 )}
                             <CreatedTitle>{story.title}</CreatedTitle>
                             <CreatedMin>
-                                {story.min}
+                                {story.runtime}
                                 <Separator>|</Separator>
-                                {story.date}
+                                {formatDate(story.created_at)}
                             </CreatedMin>
                         </CreatedContainer>
                     ))}
@@ -402,9 +491,11 @@ const Card = styled.div`
     box-shadow: 2px 2px 5px 0 rgba(0, 0, 0, 0.10);
 
     img {
-        width: 80px;
-        height: 112px;
-        object-fit: contain;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        overflow: hidden;
+        border-radius: 10px;
     }
 `;
 

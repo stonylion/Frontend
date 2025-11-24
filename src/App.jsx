@@ -95,12 +95,12 @@ function App() {
 
             {/* 내 서재 페이지 */}
             <Route path='/mylib' element={<PageWrapper orientation="portrait"><Mylib /></PageWrapper>} />
-            <Route path='/mylib-script/:bookId' element={<PageWrapper orientation="portrait"><Script /></PageWrapper>} />
+            <Route path='/mylib-script/:story_id' element={<PageWrapper orientation="portrait"><Script /></PageWrapper>} />
 
             {/* 마이 페이지 */}
             <Route path='/mypage' element={<PageWrapper orientation="portrait"><Mypage /></PageWrapper>} />
             <Route path='/mypage-profile' element={<PageWrapper orientation="portrait"><Profile /></PageWrapper>} />
-            <Route path='/mypage-kid' element={<PageWrapper orientation="portrait"><MypageKid /></PageWrapper>} />
+            <Route path='/mypage-kid/:child_id' element={<PageWrapper orientation="portrait"><MypageKid /></PageWrapper>} />
             <Route path='/mypage-kid-register' element={<PageWrapper orientation="portrait"><KidRegister /></PageWrapper>} />
             <Route path='/mypage-support/:type' element={<PageWrapper orientation="portrait"><MypageSupport /></PageWrapper>} />
             <Route path='/mypage-kid-detail' element={<PageWrapper orientation="portrait"><MypageKidDetail /></PageWrapper>} />
@@ -140,13 +140,14 @@ const Root = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;  
+  height: 100vh;
   background-color: #f5f5f5;
 `;
 
 const PageWrapper = styled.div`
-  width: ${({ orientation }) => (orientation === 'landscape' ? '798px' : '390px')};
-  height: ${({ orientation }) => (orientation === 'landscape' ? '390px' : '798px')};
+width: min(100%, ${({ orientation }) => orientation === 'landscape' ? '798px' : '390px'});
+height: min(100%, ${({ orientation }) => orientation === 'landscape' ? '390px' : '798px'});
+
   
   display: flex;
   flex-direction: column;
