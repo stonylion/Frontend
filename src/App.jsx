@@ -90,7 +90,7 @@ function App() {
 
             {/* 내 서재 페이지 */}
             <Route path='/mylib' element={<PageWrapper orientation="portrait"><Mylib /></PageWrapper>} />
-            <Route path='/mylib-script/:bookId' element={<PageWrapper orientation="portrait"><Script /></PageWrapper>} />
+            <Route path='/mylib-script/:story_id' element={<PageWrapper orientation="portrait"><Script /></PageWrapper>} />
 
             {/* 마이 페이지 */}
             <Route path='/mypage' element={<PageWrapper orientation="portrait"><Mypage /></PageWrapper>} />

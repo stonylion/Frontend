@@ -20,36 +20,41 @@ function Mylib() {
     };
 
     const playBook = async (book) => {
-        navigate(`/story-play/${book.id}`, { state: { book } });
+        navigate(`/story-play/${book.story.id}`, { state: { book } });
     };
-    const viewScript = async (book) => {
-      try {
-        const response = await api.get(`/api/story/${book.story_id}/script/`);
-        console.log("스크립트 보기 성공:", response.data);
 
-        navigate(`/mylib-script/${book.story_id}`, { state: { book } });
-      } catch (e) {
-        console.error("스크립트 보기 실패:", e);
-      }
+    const viewScript = async (book) => {
+        console.log("viewScript story:", book);
+        try {
+            const response = await api.get(`/api/story/${book.story.id}/script/`);
+            console.log("스크립트 조회 성공:", response.data);
+
+            navigate(`/mylib-script/${book.story.id}`, { state: { story: book.story }});
+        } catch (e) {
+            console.error("스크립트 조회 실패:", e);
+        }
     };
     const deleteBook = (book) => {
-      setDeleteTarget(book);
+      setDeleteTarget(target);
       handleDelete();
     };
 
     const handleDelete = () => {
       setShowDeleteModal(true);
     };
+
     const confirmDelete = async () => {
       if (!deleteTarget) return;
 
       try {
-        const response = await api.delete(`/api/mylibrary/${deleteTarget.library_id}/`);
-        console.log("동화 삭제 성공:", response.data);
+        await api.delete(`/api/mylibrary/${deleteTarget.library_id}/`);
+        console.log("동화 삭제 성공:", deleteTarget.story.title);
 
         setBooks(prev => prev.filter(b => b.library_id !== deleteTarget.library_id));
+
         setShowDeleteModal(false);
         setDeleteTarget(null);
+
       } catch (e) {
         console.error("동화 삭제 실패:", e);
       }
@@ -78,7 +83,8 @@ function Mylib() {
           const response = await api.get(endpoint);
 
           const mapped = response.data.results.map(item => ({
-            id: item.story.id,
+            library_id: item.id,
+            story_id: item.story.id,
             title: item.story.title,
             min: item.story.runtime,
             bookmark:
@@ -97,6 +103,8 @@ function Mylib() {
             progress: 0,
           }));
 
+          console.log("내서재 조회 성공:", response.data);
+
           setBooks(mapped);
         } catch (e) {
           console.error('내 서재 불러오기 실패:', e);
@@ -105,7 +113,7 @@ function Mylib() {
 
       fetchBooks();
     }, [filter, sortType]);
-
+/*
   useEffect(() => {
     const fetchProgressForBooks = async () => {
       const updatedBooks = await Promise.all(
@@ -127,7 +135,8 @@ function Mylib() {
 
     if (books.length) fetchProgressForBooks();
   }, [books]);
-    /*
+*/
+/*
     const createMylibraryRecord = async (storyId) => {
   try {
     const response = await api.get(`/api/story/${storyId}/pages/`);
@@ -180,7 +189,10 @@ createMylibraryRecord(1);
               {books.map((book) => (
                 <BookCard key={book.id} onClick={() => handleCardClick(book.id)}>
                   {activeBookId === book.id ? (
-                    <OptionCard>
+                    <OptionCard
+                      $imgUrl={book.img}
+                      onClick={e => e.stopPropagation()}
+                    >
                       <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveBookId(null); }}>×</CloseBtn>
                       <Option onClick={() => playBook(book)}>재생하기</Option>
                       <Option onClick={() => viewScript(book)}>스크립트 보기</Option>
@@ -376,7 +388,7 @@ const OptionCard = styled.div`
   width: 110px;
   height: 154px;
   border-radius: 12px;
-  background: url('/icons/click-card.svg') center / cover no-repeat; 
+  background: linear-gradient(180deg, #393939 0%, rgba(39, 34, 31, 0.70) 100%), url(${props => props.$imgUrl}) lightgray 50% / cover no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -385,6 +397,7 @@ const OptionCard = styled.div`
   font-weight: 800;
   position: relative;
   box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #dedede;
 `;
 
 const Option = styled.div`

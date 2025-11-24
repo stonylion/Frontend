@@ -26,6 +26,7 @@ function Home() {
 
     const [selectedKid, setSelectedKid] = useState(null);
     const [open, setOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] =useState(null);
 
     const handleSelect = async (kid) => {
         try {
@@ -49,11 +50,18 @@ function Home() {
     };
 
     const playBook = (story) => console.log('재생', story.title);
-    const viewScript = (story) => {
-        navigate(`/mylib-script/${story.id}`);
+    const viewScript = async (story) => {
+        try {
+            const response = await api.get(`/api/story/${story.id}/script/`);
+            console.log("스크립트 조회 성공:", response.data);
+
+            navigate(`/mylib-script/${story.id}`, { state: { story }});
+        } catch (e) {
+            console.error("스크립트 조회 실패:", e);
+        }
     };
     const deleteBook = (story) => {
-        console.log('삭제', story.title);
+        setDeleteTarget(story);
         handleDelete();
     };
     const reWrite = (story) => console.log('결말 확장하기', story.title);
@@ -63,8 +71,21 @@ function Home() {
     const handleDelete = () => {
         setShowDeleteModal(true);
     };
-    const confirmDelete = () => {
-        setShowDeleteModal(false);
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+
+        try {
+            const response = await api.delete(`/api/mylibrary/${deleteTarget.id}/`);
+            console.log("동화 삭제 성공:", response.data);
+
+            setMyStories(prev => prev.filter(story => story.id !== deleteTarget.id));
+            setReWriteStories(prev => prev.filter(story => story.id !== deleteTarget.id));
+
+            setShowDeleteModal(false);
+            setDeleteTarget(null);
+        } catch (e) {
+            console.error("동화 삭제 실패:", e);
+        }
     };
     const cancelDelete = () => {
         setShowDeleteModal(false);
@@ -123,6 +144,15 @@ function Home() {
 
         fetchMyStories();
     }, []);
+
+    const formatDate = (createdAt) => {
+        const date = new Date(createdAt);
+        return (
+            String(date.getFullYear()).slice(2) + '.' +
+            String(date.getMonth() + 1).padStart(2, '0') + '.' +
+            String(date.getDate()).padStart(2, '0')
+        );
+    };
 
     useEffect(() => {
         const fetchRecommendedStories = async () => {
@@ -248,7 +278,7 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img} alt={story.title} />
+                                            <img src={story.img} />
                                         </BookWrapper>
                                     </>
                                 )}
@@ -256,7 +286,7 @@ function Home() {
                             <CreatedMin>
                                 {story.runtime}
                                 <Separator>|</Separator>
-                                {story.created_at}
+                                {formatDate(story.created_at)}
                             </CreatedMin>
                         </CreatedContainer>
                     ))}
@@ -328,7 +358,7 @@ function Home() {
                             <CreatedMin>
                                 {story.runtime}
                                 <Separator>|</Separator>
-                                {story.created_at}
+                                {formatDate(story.created_at)}
                             </CreatedMin>
                         </CreatedContainer>
                     ))}
