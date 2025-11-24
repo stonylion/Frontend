@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
@@ -18,15 +18,22 @@ const OnboardingStep02 = () => {
   // Step01에서 전달받은 voiceId
   const { voiceId } = location.state || {};
 
+
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState("idle"); // idle → recording → paused
   const [audioURL, setAudioURL] = useState(null);
 
-  // recorder
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
-  /* 녹음 시작 */
+  useEffect(() => {
+    if (!voiceId) {
+      navigate("/onboarding/step_01");
+    }
+  }, [voiceId, navigate]);
+
+  if (!voiceId) return null; // UI 막기
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -53,14 +60,14 @@ const OnboardingStep02 = () => {
     }
   };
 
-  /* 녹음 중단 */
+  // 녹음 중단
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
     }
   };
 
-  /* 녹음 버튼 클릭 */
+  // 녹음 버튼
   const handleMicClick = () => {
     if (status === "idle") {
       setStatus("recording");
@@ -69,14 +76,13 @@ const OnboardingStep02 = () => {
       setStatus("paused");
       stopRecording();
     } else {
-      // paused 상태에서 다시 idle로
       setStatus("idle");
       setAudioURL(null);
       chunksRef.current = [];
     }
   };
 
-  /* 다시 녹음 */
+  // 다시 녹음
   const restartRecording = () => {
     setStatus("recording");
     setAudioURL(null);
@@ -84,20 +90,13 @@ const OnboardingStep02 = () => {
     startRecording();
   };
 
-  /* 서버 업로드 */
   const uploadToServer = async () => {
     if (!audioURL) {
       alert("녹음 파일이 없습니다!");
       return;
     }
 
-    if (!voiceId) {
-      alert("voiceId 정보가 없습니다. 처음 단계부터 다시 진행해주세요.");
-      return;
-    }
-
     try {
-      // audioURL → blob으로 다시 변환 (chunksRef 문제 방지용)
       const blob = await fetch(audioURL).then((res) => res.blob());
 
       const formData = new FormData();
@@ -105,9 +104,7 @@ const OnboardingStep02 = () => {
       formData.append("reference_audio", blob, "myvoice.wav");
 
       const res = await api.post("/api/accounts/voice/clone/", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       console.log("업로드 성공:", res.data);
@@ -126,7 +123,7 @@ const OnboardingStep02 = () => {
     }
   };
 
-  /* 안내 텍스트 */
+  // 안내 메시지
   const renderArcTexts = () => {
     if (status === "recording")
       return <ArcText>10초 내에 가이드 문장을 읽어주세요.</ArcText>;
@@ -159,7 +156,6 @@ const OnboardingStep02 = () => {
       />
 
       <Content>
-        {/* 가이드 문장 */}
         <GuideWrap>
           <Badge>가이드 문장</Badge>
           <Quote>
@@ -173,12 +169,10 @@ const OnboardingStep02 = () => {
 
         <Spacer />
 
-        {/* 하단 영역 */}
         <ArcArea>
           <Arc />
           <ArcTexts>{renderArcTexts()}</ArcTexts>
 
-          {/* 상태별 버튼 */}
           {status !== "paused" ? (
             <MicButton onClick={handleMicClick}>
               <img src={statusIcon} width="64" height="64" />
@@ -189,7 +183,6 @@ const OnboardingStep02 = () => {
                 <img src={ICON_RESTART} width="64" height="64" />
               </IconBtn>
 
-              {/* 재생은 현재처럼 audioURL 기반으로 */}
               <IconBtn onClick={() => audioURL && new Audio(audioURL).play()}>
                 <img src={ICON_PAUSE} width="64" height="64" />
               </IconBtn>
@@ -202,7 +195,6 @@ const OnboardingStep02 = () => {
         </ArcArea>
       </Content>
 
-      {/* 모달 */}
       {open && (
         <Dim onClick={() => setOpen(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
@@ -229,6 +221,7 @@ const OnboardingStep02 = () => {
 };
 
 export default OnboardingStep02;
+
 
 const Screen = styled.div`
   display: flex;

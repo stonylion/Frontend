@@ -1,43 +1,52 @@
 import axios from "axios";
 
-// 기본 axios 인스턴스 (GET 요청용)
-// GET 요청에는 Content-Type 제거 → preflight 방지
+// 기본 axios 인스턴스
 const api = axios.create({
-    baseURL: "http://3.34.58.51/",
+  baseURL: "http://3.34.58.51/",
 });
 
 // 요청 인터셉터
 api.interceptors.request.use(
-    (config) => {
+  (config) => {
+    // 1️⃣ 인증 제외 API
+    const noAuthUrls = [
+      "/api/accounts/signup/",
+      "/api/accounts/login/",
+    ];
 
-        // 1️⃣ 토큰을 붙이지 않을 API들 (비로그인 요청)
-        const noAuthUrls = [
-            "/api/accounts/signup/",
-            "/api/accounts/login/",
-        ];
+    if (noAuthUrls.includes(config.url)) {
+      if (config.headers?.Authorization) {
+        delete config.headers.Authorization;
+      }
+      return config;
+    }
 
-        // 2️⃣ 해당 요청은 Authorization 헤더 제거
-        if (noAuthUrls.includes(config.url)) {
-            if (config.headers?.Authorization) {
-                delete config.headers.Authorization;
-            }
-            return config;
-        }
+    // 2️⃣ 토큰 자동 추가
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
-        // 3️⃣ 나머지 요청에는 토큰 자동 추가
-        const token = localStorage.getItem("access_token");
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+    // 3️⃣ FormData일 경우 → Content-Type 제거 (브라우저가 자동 설정해야 함)
+    const isFormData =
+      config.data instanceof FormData;
 
-        // 4️⃣ POST/PUT/PATCH 요청에만 Content-Type 추가
-        if (["post", "put", "patch"].includes(config.method)) {
-            config.headers["Content-Type"] = "application/json";
-        }
+    if (isFormData) {
+      // Content-Type 지우기 (multipart 자동 처리)
+      if (config.headers["Content-Type"]) {
+        delete config.headers["Content-Type"];
+      }
+      return config;
+    }
 
-        return config;
-    },
-    (error) => Promise.reject(error)
+    // 4️⃣ 그 외 JSON 요청만 Content-Type 넣기
+    if (["post", "put", "patch"].includes(config.method)) {
+      config.headers["Content-Type"] = "application/json";
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
 export default api;
