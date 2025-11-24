@@ -47,6 +47,8 @@ function Signup() {
 
             localStorage.setItem('access_token', token.access_token);
             localStorage.setItem('refresh', token.refresh);
+            localStorage.setItem("username", id);
+
 
             navigate('/onboarding');
         } catch (error) {

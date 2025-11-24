@@ -27,8 +27,8 @@ const Onboardingend = () => {
         {/* 버튼 두 개 (문구 바로 아래로 이동) */}
         <ButtonsCol>
           <StyledButton
-            bgColor="#FFD342"
-            color="#FFF"
+            $bgColor="#FFD342"
+            $color="#FFF"
             onClick={() => navigate('/home')}
           >
             홈으로
