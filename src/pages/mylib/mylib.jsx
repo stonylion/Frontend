@@ -12,6 +12,12 @@ function Mylib() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [books, setBooks] = useState([]);
     const [sortType, setSortType] = useState('recentView');
+
+    const SORT_API = {
+      recentView: '/api/mylibrary/recentread/',
+      recentGenerated: '/api/mylibrary/recentgenerated/',
+    };
+
     const [open, setOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -35,7 +41,7 @@ function Mylib() {
         }
     };
     const deleteBook = (book) => {
-      setDeleteTarget(target);
+      setDeleteTarget(book);
       handleDelete();
     };
 
@@ -47,10 +53,10 @@ function Mylib() {
       if (!deleteTarget) return;
 
       try {
-        await api.delete(`/api/mylibrary/${deleteTarget.library_id}/`);
+        await api.delete(`/api/mylibrary/${deleteTarget.id}/`);
         console.log("동화 삭제 성공:", deleteTarget.story.title);
 
-        setBooks(prev => prev.filter(b => b.library_id !== deleteTarget.library_id));
+        setBooks(prev => prev.filter(b => b.id !== deleteTarget.id));
 
         setShowDeleteModal(false);
         setDeleteTarget(null);
@@ -67,10 +73,7 @@ function Mylib() {
     useEffect(() => {
       const fetchBooks = async () => {
         try {
-          let endpoint =
-            sortType === 'recentView'
-              ? '/api/mylibrary/recentread/'
-              : '/api/mylibrary/recentgenerated/';
+          let endpoint = SORT_API[sortType];
           
           if (filter != '전체') {
             const category =
@@ -82,30 +85,9 @@ function Mylib() {
 
           const response = await api.get(endpoint);
 
-          const mapped = response.data.results.map(item => ({
-            library_id: item.id,
-            story_id: item.story.id,
-            title: item.story.title,
-            min: item.story.runtime,
-            bookmark:
-              item.story.category === 'custom'
-                ? '제작'
-                : item.story.category === 'classic'
-                ? '명작'
-                : '확장',
-            viewedAt: item.last_viewed_time
-              ? item.last_viewed_time.slice(2, 10).replace(/-/g, '.')
-              : '',
-            createdAt: item.story.created_at
-              ? item.story.created_at.slice(2, 10).replace(/-/g, '.')
-              : '',
-            img: '/icons/book.svg',
-            progress: 0,
-          }));
-
           console.log("내서재 조회 성공:", response.data);
 
-          setBooks(mapped);
+          setBooks(response.data.results);
         } catch (e) {
           console.error('내 서재 불러오기 실패:', e);
         }
@@ -113,29 +95,6 @@ function Mylib() {
 
       fetchBooks();
     }, [filter, sortType]);
-/*
-  useEffect(() => {
-    const fetchProgressForBooks = async () => {
-      const updatedBooks = await Promise.all(
-        books.map(async (book) => {
-          try {
-            const res = await api.post('/api/mylibrary/last-viewed/', {
-              story_id: book.story_id,
-              page_number: 0,
-            });
-            const lastPage = res.data.last_viewed_page || 0;
-            return { ...book, progress: Math.floor((lastPage / 10) * 100) };
-          } catch {
-            return { ...book, progress: 0 };
-          }
-        })
-      );
-      setBooks(updatedBooks);
-    };
-
-    if (books.length) fetchProgressForBooks();
-  }, [books]);
-*/
 /*
     const createMylibraryRecord = async (storyId) => {
   try {
@@ -145,7 +104,6 @@ function Mylib() {
     console.error('기록 생성 실패:', e);
   }
 };
-
 // 예시: storyId가 1인 동화 기록 생성
 createMylibraryRecord(1);
 */
@@ -172,12 +130,14 @@ createMylibraryRecord(1);
             </BookCount>
             <SortMenu>
               <SortButton onClick={() => setOpen(!open)}>
-                {sortType === 'recentView' ? '최근 시청 순' : '최근 제작 순'}
+                {sortType === 'recentView'
+                  ? '최근 시청 순'
+                  : '최근 제작 순'}
                 <img src={open ? '/icons/arrow-up.svg' : '/icons/arrow-down.svg'} />
               </SortButton>
               <Dropdown open={open}>
                 <li onClick={() => { setSortType('recentView'); setOpen(false); }}>최근 시청순</li>
-                <li onClick={() => { setSortType('recentCreate'); setOpen(false); }}>최근 제작순</li>
+                <li onClick={() => { setSortType('recentGenerated'); setOpen(false); }}>최근 제작순</li>
               </Dropdown>
             </SortMenu>
           </SortHeader>
@@ -190,7 +150,7 @@ createMylibraryRecord(1);
                 <BookCard key={book.id} onClick={() => handleCardClick(book.id)}>
                   {activeBookId === book.id ? (
                     <OptionCard
-                      $imgUrl={book.img}
+                      $imgUrl={book.story.img}
                       onClick={e => e.stopPropagation()}
                     >
                       <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveBookId(null); }}>×</CloseBtn>
@@ -201,17 +161,17 @@ createMylibraryRecord(1);
                   ) : (
                     <>
                     <BookWrapper>
-                      <img src={book.img} alt={book.title} />
+                      <img src={book.story.img} />
                       <ProgressContainer>
-                        <ProgressFill style={{ width: `${book.progress}%` }} />
+                        <ProgressFill style={{ width: `${book.last_viewed_page && book.page_count ? (book.last_viewed_page / book.page_count) * 100 : 0}%` }} />
                       </ProgressContainer>
                     </BookWrapper>
                     <Badge>
                       <img
                         src={
-                          book.bookmark === '명작'
+                          book.story.category === 'classic'
                           ? '/icons/Bookmark-cream.svg'
-                          : book.bookmark === '확장'
+                          : book.story.category === 'extended'
                           ? '/icons/Bookmark-yellow.svg'
                           : '/icons/Bookmark-black.svg'
                         }
@@ -219,9 +179,9 @@ createMylibraryRecord(1);
                     </Badge>
                     </>
                   )}
-                    <Title>{book.title}</Title>
+                    <Title>{book.story.title}</Title>
                     <ViewMin>
-                      {book.min}
+                      {book.story.runtime}
                     </ViewMin>
                   </BookCard>
                 ))}
