@@ -12,74 +12,82 @@ function Mylib() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [books, setBooks] = useState([]);
     const [sortType, setSortType] = useState('recentView');
+
+    const SORT_API = {
+      recentView: '/api/mylibrary/recentread/',
+      recentGenerated: '/api/mylibrary/recentgenerated/',
+    };
+
     const [open, setOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const handleCardClick = (id) => {
       setActiveBookId(id === activeBookId ? null : id);
     };
 
-    const viewScript = (book) => {
-      navigate(`/mylib-script/${book.id}`, { state: { book } });
+    const playBook = async (book) => {
+        navigate(`/story-play/${book.story.id}`, { state: { book } });
     };
 
+    const viewScript = async (book) => {
+        console.log("viewScript story:", book);
+        try {
+            const response = await api.get(`/api/story/${book.story.id}/script/`);
+            console.log("스크립트 조회 성공:", response.data);
+
+            navigate(`/mylib-script/${book.story.id}`, { state: { story: book.story }});
+        } catch (e) {
+            console.error("스크립트 조회 실패:", e);
+        }
+    };
     const deleteBook = (book) => {
-      console.log('삭제', book.title);
+      setDeleteTarget(book);
       handleDelete();
     };
 
-        const handleDelete = () => {
-        setShowDeleteModal(true);
+    const handleDelete = () => {
+      setShowDeleteModal(true);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
+      if (!deleteTarget) return;
+
+      try {
+        await api.delete(`/api/mylibrary/${deleteTarget.id}/`);
+        console.log("동화 삭제 성공:", deleteTarget.story.title);
+
+        setBooks(prev => prev.filter(b => b.id !== deleteTarget.id));
+
         setShowDeleteModal(false);
-    };
+        setDeleteTarget(null);
 
+      } catch (e) {
+        console.error("동화 삭제 실패:", e);
+      }
+    };
     const cancelDelete = () => {
-        setShowDeleteModal(false);
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     };
 
     useEffect(() => {
       const fetchBooks = async () => {
         try {
-          let endpoint =
-            sortType === 'recentView'
-              ? '/api/mylibrary/recentread/'
-              : '/api/mylibrary/recentgenerated/';
+          let endpoint = SORT_API[sortType];
           
           if (filter != '전체') {
             const category =
               filter === '제작' ? 'custom' :
               filter === '명작' ? 'classic' :
-                'expand';
+              filter === '확장' ? 'extended' : '';
             endpoint += `?category=${category}`;
           }
 
           const response = await api.get(endpoint);
 
-          const mapped = response.data.results.map(item => ({
-            id: item.story.id,
-            title: item.story.title,
-            min: item.story.runtime,
-            bookmark:
-              item.story.category === 'custom'
-                ? '제작'
-                : item.story.category === 'classic'
-                ? '명작'
-                : '확장',
-            viewedAt: item.last_viewed_time
-              ? item.last_viewed_time.slice(2, 10).replace(/-/g, '.')
-              : '',
-            createdAt: item.story.created_at
-              ? item.story.created_at.slice(2, 10).replace(/-/g, '.')
-              : '',
-            img: '/icons/book.svg',
-            progress: item.last_viewed_page
-              ? Math.floor((item.last_viewed_page / 10) * 100)
-              : 0
-          }));
+          console.log("내서재 조회 성공:", response.data);
 
-          setBooks(mapped);
+          setBooks(response.data.results);
         } catch (e) {
           console.error('내 서재 불러오기 실패:', e);
         }
@@ -87,7 +95,7 @@ function Mylib() {
 
       fetchBooks();
     }, [filter, sortType]);
-
+/*
     const createMylibraryRecord = async (storyId) => {
   try {
     const response = await api.get(`/api/story/${storyId}/pages/`);
@@ -96,10 +104,9 @@ function Mylib() {
     console.error('기록 생성 실패:', e);
   }
 };
-
 // 예시: storyId가 1인 동화 기록 생성
 createMylibraryRecord(1);
-
+*/
     return (
         <>
         <MylibHeader>내 서재</MylibHeader>
@@ -123,12 +130,14 @@ createMylibraryRecord(1);
             </BookCount>
             <SortMenu>
               <SortButton onClick={() => setOpen(!open)}>
-                {sortType === 'recentView' ? '최근 시청 순' : '최근 제작 순'}
+                {sortType === 'recentView'
+                  ? '최근 시청 순'
+                  : '최근 제작 순'}
                 <img src={open ? '/icons/arrow-up.svg' : '/icons/arrow-down.svg'} />
               </SortButton>
               <Dropdown open={open}>
                 <li onClick={() => { setSortType('recentView'); setOpen(false); }}>최근 시청순</li>
-                <li onClick={() => { setSortType('recentCreate'); setOpen(false); }}>최근 제작순</li>
+                <li onClick={() => { setSortType('recentGenerated'); setOpen(false); }}>최근 제작순</li>
               </Dropdown>
             </SortMenu>
           </SortHeader>
@@ -140,7 +149,10 @@ createMylibraryRecord(1);
               {books.map((book) => (
                 <BookCard key={book.id} onClick={() => handleCardClick(book.id)}>
                   {activeBookId === book.id ? (
-                    <OptionCard>
+                    <OptionCard
+                      $imgUrl={book.story.img}
+                      onClick={e => e.stopPropagation()}
+                    >
                       <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveBookId(null); }}>×</CloseBtn>
                       <Option onClick={() => playBook(book)}>재생하기</Option>
                       <Option onClick={() => viewScript(book)}>스크립트 보기</Option>
@@ -149,17 +161,17 @@ createMylibraryRecord(1);
                   ) : (
                     <>
                     <BookWrapper>
-                      <img src={book.img} alt={book.title} />
+                      <img src={book.story.img} />
                       <ProgressContainer>
-                        <ProgressFill style={{ width: `${book.progress}%` }} />
+                        <ProgressFill style={{ width: `${book.last_viewed_page && book.page_count ? (book.last_viewed_page / book.page_count) * 100 : 0}%` }} />
                       </ProgressContainer>
                     </BookWrapper>
                     <Badge>
                       <img
                         src={
-                          book.bookmark === '명작'
+                          book.story.category === 'classic'
                           ? '/icons/Bookmark-cream.svg'
-                          : book.bookmark === '확장'
+                          : book.story.category === 'extended'
                           ? '/icons/Bookmark-yellow.svg'
                           : '/icons/Bookmark-black.svg'
                         }
@@ -167,9 +179,9 @@ createMylibraryRecord(1);
                     </Badge>
                     </>
                   )}
-                    <Title>{book.title}</Title>
+                    <Title>{book.story.title}</Title>
                     <ViewMin>
-                      {book.min}
+                      {book.story.runtime}
                     </ViewMin>
                   </BookCard>
                 ))}
@@ -336,7 +348,7 @@ const OptionCard = styled.div`
   width: 110px;
   height: 154px;
   border-radius: 12px;
-  background: url('/icons/click-card.svg') center / cover no-repeat; 
+  background: linear-gradient(180deg, #393939 0%, rgba(39, 34, 31, 0.70) 100%), url(${props => props.$imgUrl}) lightgray 50% / cover no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -345,6 +357,7 @@ const OptionCard = styled.div`
   font-weight: 800;
   position: relative;
   box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #dedede;
 `;
 
 const Option = styled.div`

@@ -71,9 +71,16 @@ function MypageKid() {
         setShowDeleteModal(false);
     };
 
-    const confirmDelete = () => {
-        setShowDeleteModal(false);
-        navigate('/mypage');
+    const confirmDelete = async () => {
+        try {
+            const response = await api.delete(`/api/accounts/child/${child_id}/delete/`);
+            console.log("아이 삭제 성공:", response.data);
+
+            setShowDeleteModal(false);
+            navigate('/mypage');
+        } catch (e) {
+            console.error("아이 삭제 실패:", e);
+        }
     };
 
     const avatars = Object.values(avatarMap);
@@ -89,7 +96,7 @@ function MypageKid() {
                 console.log("아이 정보 조회:", response.data);
 
                 setNickname(response.data.name || '');
-                setBirth(response.data.birth_date || '');
+                setBirth(response.data.birth_date?.replace(/-/g, '.') || '');
                 setSelectedGender(response.data.gender === 'F' ? 'female' : 'male');
                 setSelectedAvatar(avatarMap[response.data.child_image_code] || avatarMap.child1);
             } catch (e) {
