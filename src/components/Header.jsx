@@ -34,7 +34,7 @@ const Header = ({
                         )}
                         {action.icon && (
                             <StyledIconBtn onClick={action.handler}>
-                                <img src={action.icon} alt="action icon" width="24" height="24" />
+                                <img src={action.icon} alt="action icon" style={{ width: '20px', height: '20px' }} />
                             </StyledIconBtn>
                         )}
                     </>
