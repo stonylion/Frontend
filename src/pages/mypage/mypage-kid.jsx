@@ -96,7 +96,7 @@ function MypageKid() {
                 console.log("아이 정보 조회:", response.data);
 
                 setNickname(response.data.name || '');
-                setBirth(response.data.birth_date || '');
+                setBirth(response.data.birth_date?.replace(/-/g, '.') || '');
                 setSelectedGender(response.data.gender === 'F' ? 'female' : 'male');
                 setSelectedAvatar(avatarMap[response.data.child_image_code] || avatarMap.child1);
             } catch (e) {
