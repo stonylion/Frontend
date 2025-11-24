@@ -116,7 +116,7 @@ function Mypage() {
                                     {kid.name}
                                     {kid.is_active && <ActiveDot />}
                                 </Name>
-                                <ArrowRightBtn onClick={() => navigate('/mypage-kid-detail')}>
+                                <ArrowRightBtn onClick={() => navigate(`/mypage-kid-detail/${kid.child_id}`)}>
                                     <img src='/icons/arrow-right-black.svg' width={16} />
                                 </ArrowRightBtn>
                             </ModifyContent>

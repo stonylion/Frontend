@@ -103,7 +103,7 @@ function App() {
             <Route path='/mypage-kid/:child_id' element={<PageWrapper orientation="portrait"><MypageKid /></PageWrapper>} />
             <Route path='/mypage-kid-register' element={<PageWrapper orientation="portrait"><KidRegister /></PageWrapper>} />
             <Route path='/mypage-support/:type' element={<PageWrapper orientation="portrait"><MypageSupport /></PageWrapper>} />
-            <Route path='/mypage-kid-detail' element={<PageWrapper orientation="portrait"><MypageKidDetail /></PageWrapper>} />
+            <Route path='/mypage-kid-detail/:child_id' element={<PageWrapper orientation="portrait"><MypageKidDetail /></PageWrapper>} />
 
             {/* 삽화 생성 페이지 */}
             <Route path='/illust-portrait' element={<PageWrapper orientation="portrait"><IllustPortrait /></PageWrapper>} />

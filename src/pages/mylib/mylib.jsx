@@ -163,7 +163,7 @@ createMylibraryRecord(1);
                     <BookWrapper>
                       <img src={book.story.img} />
                       <ProgressContainer>
-                        <ProgressFill style={{ width: `${book.last_viewed_page && book.page_count ? (book.last_viewed_page / book.page_count) * 100 : 0}%` }} />
+                        <ProgressFill style={{ width: `${book.last_viewed_page && book.story.page_count ? (book.last_viewed_page / book.story.page_count) * 100 : 0}%` }} />
                       </ProgressContainer>
                     </BookWrapper>
                     <Badge>
