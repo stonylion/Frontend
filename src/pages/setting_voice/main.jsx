@@ -104,7 +104,9 @@ const VoiceSettingMain = () => {
               {/* 재생 버튼 */}
               <IconButton
                 onClick={() =>
-                  voice.clonedVoiceURL && new Audio(voice.clonedVoiceURL).play()
+                  navigate("/mypage/voice_set/detail", {
+                    state: { voiceId: voice.id },
+                  })
                 }
               >
                 <img src="/img/setting_voice/play.svg" alt="play" />
@@ -118,7 +120,6 @@ const VoiceSettingMain = () => {
                   })
                 }
               >
-                <img src="/img/setting_voice/edit.svg" alt="edit" />
               </IconButton>
 
               {/* 삭제 */}
