@@ -1,6 +1,18 @@
 import styled, { keyframes } from 'styled-components';
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 function Endwritestep01() {
+    const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      navigate("/rewrite_end/step02");
+    }, 2000); // 2초
+
+    return () => clearTimeout(timer);
+  }, [navigate]);
+
     return (
         <Overlay>
             <Spinner>

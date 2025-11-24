@@ -22,13 +22,11 @@ const Storystep01 = () => {
       });
 
       console.log("동화 옵션 저장 성공:", res.data);
-
-      // 서버에서 next="/story/record/" 줌
-      const nextPath = res.data?.next || "/mystory/ai_story/step02";
-      navigate(nextPath);
+      navigate("/mystory/ai_story/step02");
 
     } catch (err) {
       console.error("동화 옵션 저장 실패:", err);
+      console.log("서버 응답:", err.response?.data);
       alert("동화 옵션을 저장하는 중 문제가 발생했습니다.");
     } finally {
       setLoading(false);

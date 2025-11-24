@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../api/axios.js";
 
 const EDIT_ICON = "/img/setting_voice/edit.svg";
@@ -10,38 +10,35 @@ const ICON_EXIT = "/icons/new_right_part.svg";
 
 const Storystep07 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [title, setTitle] = useState("여우, 두루미와의 피크닉");
-  const [story, setStory] = useState(
-    `옛날옛날에 여우와 두루미가 살았어요...`
-  );
+  const incomingTitle = location.state?.title ||"";
+  const incomingStory =
+    location.state?.content ||"";
+
+  const [title, setTitle] = useState(incomingTitle);
+  const [story, setStory] = useState(incomingStory);
 
   const [isEditing, setIsEditing] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // =========================
-  // 🔥 AI 스토리 다시 쓰기 로직
-  // =========================
   const handleRewrite = async () => {
-    try {
-      // 1) Redis 초기화
-      await api.post("/api/story/reset/");
+  try {
+    const res = await api.post("/api/story/generate/");
+    const newStory = res.data;
 
-      // 2) 다시 스토리 생성
-      const res = await api.post("/api/story/generate/");
-      const newStory = res.data;
+    navigate("/mystory/ai_story/step07", {
+      state: {
+        title: res.data.title,
+        content: res.data.content,
+      },
+    });
+  } catch (err) {
+    console.log("❌ 다시쓰기 오류:", err.response?.data || err);
+    alert("AI 스토리 생성에 실패했어요!");
+  }
+};
 
-      // 3) step07 화면에 새 스토리 전달
-      navigate("/mystory/ai_story/step07", {
-        state: {
-          title: newStory.title,
-          content: newStory.content,
-        },
-      });
-    } catch (err) {
-      console.log("❌ 다시쓰기 오류:", err);
-    }
-  };
 
   const handleExit = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -123,10 +120,6 @@ const Storystep07 = () => {
 
 export default Storystep07;
 
-
-// ===============================
-//           STYLES
-// ===============================
 
 const Screen = styled.div`
   display: flex;

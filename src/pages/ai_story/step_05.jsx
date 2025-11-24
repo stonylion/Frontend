@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import styled, { keyframes, css } from "styled-components";
+import styled, { css } from "styled-components";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../../components/Header.jsx";
 import api from "../../api/axios.js";
@@ -12,7 +12,10 @@ const Storystep05 = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const storyText = location.state?.text || "";
+  //step03 → step04 → step05 로 전달된 텍스트
+  const incomingText = location.state?.text || "";
+  const [showQuitModal, setShowQuitModal] = useState(false);
+
 
   const [selected, setSelected] = useState([]);
   const [recommended, setRecommended] = useState([]);
@@ -22,28 +25,29 @@ const Storystep05 = () => {
   const [customList, setCustomList] = useState([]);
 
   const DEFAULT_MORALS = [
-    "가족","감사","공감","나눔","노력","다양성",
-    "사랑","생명","신뢰","용기","우정","정직",
-    "존중","절제","책임감","희망"
+    "가족", "감사", "공감", "나눔", "노력", "다양성",
+    "사랑", "생명", "신뢰", "용기", "우정", "정직",
+    "존중", "절제", "책임감", "희망"
   ];
+
 
   useEffect(() => {
     const fetchMorals = async () => {
       try {
         const res = await api.post("/api/story/story-morals/recommend/", {
-          text: storyText
+          text: incomingText
         });
 
         setRecommended(res.data.recommended_morals);
       } catch (err) {
-        console.log("❌ 추천 교훈 API 오류:", err);
+        console.log("❌ 추천 교훈 API 오류:", err.response?.data || err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchMorals();
-  }, []);
+  }, [incomingText]);
 
   // 선택 토글
   const toggleValue = (v) => {
@@ -54,7 +58,7 @@ const Storystep05 = () => {
     }
   };
 
-  // 커스텀 입력 엔터
+  // 엔터 입력으로 직접 추가
   const handleEnter = (e) => {
     if (e.key === "Enter" && customInput.trim()) {
       e.preventDefault();
@@ -71,21 +75,27 @@ const Storystep05 = () => {
 
   const handleNext = async () => {
     try {
-      // 기본 교훈 → id로 변환
+      // 기본 교훈 텍스트 -> ID로 매핑
       const selected_morals_ids = selected
         .map((text) => DEFAULT_MORALS.indexOf(text) + 1)
         .filter((id) => id > 0);
 
-      await api.post("/api/story/story-morals/", {
+      const body = {
         selected_morals: selected_morals_ids,
         custom_morals: customList
-      });
+      };
+
+      const res = await api.post("/api/story/story-morals/", body);
+      console.log("😊 교훈 저장:", res.data);
 
       navigate("/mystory/ai_story/step06", {
-        state: { text: storyText }
+        state: { 
+          text: incomingText,
+         }
       });
     } catch (err) {
-      console.log("❌ 교훈 저장 API 오류:", err);
+      console.log("⚠️ 교훈 저장 API 오류:", err.response?.data || err);
+      alert("교훈 저장 중 문제가 발생했습니다.");
     }
   };
 
@@ -188,7 +198,7 @@ const ProgressBarContainer = styled.div`
 `;
 
 const ProgressBar = styled.div`
-  width: ${({ $progress }) => $progress}%;
+  width: ${({ $progress }) => $progress}% ;
   height: 100%;
   background: #ffd342;
 `;
@@ -243,7 +253,6 @@ const AITag = styled.button`
   padding: 8px 16px;
   border-radius: 30px;
   font-weight: 800;
-
   ${({ $active }) =>
     $active
       ? css`
@@ -268,7 +277,6 @@ const Tag = styled.button`
   padding: 8px 16px;
   border-radius: 30px;
   font-weight: 700;
-
   ${({ $active }) =>
     $active
       ? css`
@@ -335,7 +343,6 @@ const CustomInput = styled.input`
   border: none;
   background: transparent;
   width: 90px;
-
   &:focus {
     outline: none;
   }
@@ -355,3 +362,69 @@ const NextButton = styled.button`
   font-weight: 800;
   font-size: 16px;
 `;
+
+const Dim = styled.div`
+  position: absolute;
+  inset: 0;
+  width: 390px;
+  height: 852px;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`;
+
+const Modal = styled.div`
+  width: 320px;
+  height: 196px;
+  padding: 24px 24px 16px;
+  background: #fff;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-items: center;
+`;
+
+const ModalTitle = styled.h3`
+  color: #393939;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+`;
+
+const ModalDesc = styled.p`
+  color: #7a7a7a;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 22px;
+`;
+
+const ModalBtnRow = styled.div`
+  display: flex;
+  gap: 12px;
+`;
+
+const ModalBtnGray = styled.button`
+  width: 130px;
+  height: 40px;
+  background-color: #f1f1f1;
+  border-radius: 99px;
+  border: none;
+  color: #7a7a7a;
+  font-size: 14px;
+  font-weight: 800;
+`;
+
+const ModalBtnYellow = styled.button`
+  width: 130px;
+  height: 40px;
+  background: #ffd342;
+  border-radius: 99px;
+  border: none;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+`;
+

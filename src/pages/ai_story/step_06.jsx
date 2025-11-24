@@ -1,6 +1,31 @@
 import styled, { keyframes } from 'styled-components';
+import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import api from "../../api/axios.js";
+
 
 function Storystep06() {
+    const navigate = useNavigate();
+    useEffect(() => {
+  const timer = setTimeout(async () => {
+    try {
+      const res = await api.post("/api/story/generate/");
+      navigate("/mystory/ai_story/step07", {
+        state: {
+          title: res.data.title,
+          content: res.data.content,
+        },
+      });
+    } catch (err) {
+      console.log("❌ 스토리 생성 오류:", err.response?.data || err);
+      alert("스토리 생성에 실패했어요!");
+    }
+  }, 2000);
+
+  return () => clearTimeout(timer);
+}, []);
+
+    
     return (
         <Overlay>
             <Spinner>

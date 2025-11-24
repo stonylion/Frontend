@@ -47,11 +47,16 @@ const Storystep04 = () => {
         </VoiceText>
 
         <NextButton
-          disabled={!text.trim()}
-          onClick={() => navigate("/mystory/ai_story/step05")}
-        >
-          다음
-        </NextButton>
+  disabled={!text.trim()}
+  onClick={() =>
+    navigate("/mystory/ai_story/step05", {
+      state: { text },
+    })
+  }
+>
+  다음
+</NextButton>
+
       </BottomArea>
 
       {showQuitModal && (
