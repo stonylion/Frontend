@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
 import { useNavigate } from "react-router-dom";
@@ -14,26 +14,183 @@ const ICON_DONE = "/img/ai_story/done.svg";
 const Storystep02 = () => {
   const navigate = useNavigate();
 
+  // idle | recording | select
   const [status, setStatus] = useState("idle");
   const [showQuitModal, setShowQuitModal] = useState(false);
 
+  // STT 관련 상태
+  const [draftText, setDraftText] = useState(""); // 화면에 띄울 STT 결과
+  const [wsConnected, setWsConnected] = useState(false);
+
+  // ref들
+  const wsRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      console.warn("⚠ access_token이 없어 STT WebSocket을 연결하지 못함");
+      return;
+    }
+
+    const wsUrl = `ws://3.34.58.51/ws/story/record/?token=${token}`;
+    const socket = new WebSocket(wsUrl);
+    socket.binaryType = "arraybuffer";
+
+    socket.onopen = () => {
+      console.log("🟢 STT WebSocket 연결 성공");
+      setWsConnected(true);
+    };
+
+    socket.onmessage = (event) => {
+      let data = null;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        console.error("JSON 파싱 오류:", event.data);
+        return;
+      }
+
+      console.log("📨 STT 서버 메시지:", data);
+
+      // 서버에서 보내주는 형식:
+      // { "type": "transcription", "text": "..." }
+      if (data.type === "transcription" && data.text) {
+        setDraftText((prev) => {
+          const combined = (prev ? prev + " " + data.text : data.text).trim();
+          // 공백 포함 최대 79자
+          return combined.slice(0, 79);
+        });
+      }
+
+      if (data.status) {
+        console.log("STT status:", data.status);
+      }
+
+      if (data.error || data.error_message) {
+        console.error("STT 오류:", data.error || data.error_message);
+      }
+    };
+
+    socket.onerror = (err) => {
+      console.error("❌ WebSocket 에러:", err);
+      setWsConnected(false);
+    };
+
+    socket.onclose = () => {
+      console.log("🔴 WebSocket 종료됨");
+      setWsConnected(false);
+    };
+
+    wsRef.current = socket;
+
+    return () => {
+      socket.close();
+    };
+  }, []);
+
+  const startRecording = async () => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.warn("⚠ WebSocket이 열려있지 않아서 녹음을 시작할 수 없음");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
+
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = async (event) => {
+        if (
+          event.data.size > 0 &&
+          wsRef.current &&
+          wsRef.current.readyState === WebSocket.OPEN
+        ) {
+          const arrayBuffer = await event.data.arrayBuffer();
+          wsRef.current.send(arrayBuffer);
+        }
+      };
+
+      mediaRecorder.start(300); // 300ms 단위로 chunk 전송
+      console.log("🎙️ 녹음 시작");
+    } catch (e) {
+      console.error("마이크 권한 / 녹음 시작 실패:", e);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      // 마이크 스트림 정리
+      mediaRecorderRef.current.stream
+        .getTracks()
+        .forEach((track) => track.stop());
+      mediaRecorderRef.current = null;
+    }
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ command: "stop" }));
+    }
+
+    console.log("🛑 녹음 종료");
+  };
+
   const handleMicClick = () => {
-    if (status === "idle") setStatus("recording");
-    else if (status === "recording") setStatus("select");
+    if (status === "idle") {
+      // idle → recording
+      startRecording();
+      setStatus("recording");
+    } else if (status === "recording") {
+      // recording → select
+      stopRecording();
+      setStatus("select");
+    }
+  };
+
+  const handleAgain = () => {
+    // 다시 녹음하기: 상태 idle로, 텍스트 초기화
+    stopRecording();
+    setDraftText("");
+    setStatus("idle");
+  };
+
+  const handleDone = () => {
+    // TODO: 여기서 draftText를 다음 스텝으로 넘길 수 있음
+    navigate("/mystory/ai_story/step04", {
+      state: { draftText },
+    });
+  };
+
+  const renderArcTexts = () => {
+    // 녹음 중 or 완료 상태에서 STT 텍스트가 있다면 그걸 우선 표시
+    if ((status === "recording" || status === "select") && draftText.trim()) {
+      return <ArcText>{draftText}</ArcText>;
+    }
+
+    if (status === "recording") {
+      return (
+        <ArcText>버튼을 눌러 말하기를 멈출 수 있어요.</ArcText>
+      );
+    }
+
+    if (status === "select") {
+      // STT 텍스트가 없는 select 상태라면…
+      return (
+        <ArcText>에피소드 음성 입력이 완료되었어요.</ArcText>
+      );
+    }
+
+    // 기본 idle 문구
+    return (
+      <ArcText>조용한 곳에서 또박또박 말씀해주세요.</ArcText>
+    );
   };
 
   const statusIcon = status === "idle" ? ICON_RECORD : ICON_PAUSE;
-
-  const renderArcTexts = () => {
-    if (status === "select")
-      return <ArcText>에피소드 음성 입력이 완료되었어요.</ArcText>;
-    if (status === "recording")
-      return <ArcText>버튼을 눌러 말하기를 멈출 수 있어요.</ArcText>;
-    return <ArcText>조용한 곳에서 또박또박 말씀해주세요.</ArcText>;
-  };
-
-  const handleAgain = () => setStatus("idle");
-  const handleDone = () => navigate("/mystory/ai_story/step04");
 
   return (
     <Screen>
@@ -82,6 +239,7 @@ const Storystep02 = () => {
               <img src={ICON_AGAIN} alt="again" width="64" height="64" />
             </ControlBtn>
 
+            {/* 아직 기능 없음: 디자인만 유지 */}
             <ControlBtnDisabled>
               <div className="bg" />
               <img src={ICON_CLEAR} alt="clear" width="64" height="64" />
@@ -220,7 +378,6 @@ const MicButton = styled.button`
   cursor: pointer;
 `;
 
-
 const ControlRow = styled.div`
   position: absolute;
   bottom: 80px;
@@ -251,7 +408,7 @@ const ControlBtnDisabled = styled(SmallMicBtn)`
   .bg {
     position: absolute;
     inset: 0;
-    background: #c5e384
+    background: #c5e384;
     border-radius: 50%;
     z-index: 1;
   }
@@ -261,7 +418,6 @@ const ControlBtnDisabled = styled(SmallMicBtn)`
     z-index: 2;
   }
 `;
-
 
 const Dim = styled.div`
   position: absolute;

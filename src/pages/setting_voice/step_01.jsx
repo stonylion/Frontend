@@ -23,10 +23,10 @@ const VoiceSetStep01 = () => {
 
   const current = CHARACTERS.find(c => c.key === selected) || CHARACTERS[0];
 
-  // 🔥 voice_image_code 매핑
+  // voice_image_code 매핑
   const voiceImageCode = current.code;
 
-  // 🔥 API 호출 포함한 Next 버튼
+  // API 호출 포함한 Next 버튼
   const handleNext = async () => {
     if (name.trim() === '') {
       setError(true);
@@ -45,11 +45,11 @@ const VoiceSetStep01 = () => {
 
       // step02로 voice_id 전달
       navigate('/mypage/voice_set/step02', {
-        state: { voiceId }
+        state: { voiceId, name }
       });
 
     } catch (e) {
-      console.error("❌ 메타데이터 생성 실패:", e);
+      console.error("⚠️ 메타데이터 생성 실패:", e);
       alert("목소리 등록 중 오류가 발생했습니다.");
     }
   };
@@ -139,7 +139,6 @@ const VoiceSetStep01 = () => {
 
 export default VoiceSetStep01;
 
-/* ---------------- Styled Components (그대로 유지) ---------------- */
 
 // 흔들림 애니메이션
 const shake = keyframes`
@@ -321,6 +320,7 @@ const ModalTitle = styled.h3`
 const ModalDesc = styled.p`
   color: #7a7a7a;
   font-size: 14px;
+  text-align: center;
   line-height: 22px;
 `;
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
@@ -26,6 +26,14 @@ const VoiceSetStep02 = () => {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
+  useEffect(() => {
+    if (!voiceId) {
+      navigate("/mypage/voice_set/step01");
+    }
+  }, [voiceId, navigate]);
+
+  if (!voiceId) return null;
+
   /* 녹음 시작 */
   const startRecording = async () => {
     try {
@@ -33,7 +41,6 @@ const VoiceSetStep02 = () => {
 
       chunksRef.current = [];
       const mediaRecorder = new MediaRecorder(stream);
-
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (e) => {
@@ -69,7 +76,6 @@ const VoiceSetStep02 = () => {
       setStatus("paused");
       stopRecording();
     } else {
-      // paused 상태에서 다시 idle로
       setStatus("idle");
       setAudioURL(null);
       chunksRef.current = [];
@@ -91,11 +97,6 @@ const VoiceSetStep02 = () => {
       return;
     }
 
-    if (!voiceId) {
-      alert("voiceId 정보가 없습니다. 처음 단계부터 다시 진행해주세요.");
-      return;
-    }
-
     try {
       const blob = await fetch(audioURL).then((res) => res.blob());
 
@@ -103,21 +104,20 @@ const VoiceSetStep02 = () => {
       formData.append("voice_id", voiceId);
       formData.append("reference_audio", blob, "myvoice.wav");
 
-      // multipart 예외 처리 (axios 인터셉터 우회)
+      // axios multipart 예외 처리 우회
       const res = await api.post("/api/accounts/voice/clone/", formData, {
         transformRequest: (data) => data,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       console.log("업로드 성공:", res.data);
 
-      navigate("/onboarding/step_03", {
+      navigate("/mypage/voice_set/step03", {
         state: {
           voiceId: res.data.voice_id,
           clonedVoiceURL: res.data.cloned_voice_url,
           referenceAudioURL: res.data.reference_audio_url,
+          userName: location.state?.name
         },
       });
     } catch (err) {
@@ -203,7 +203,7 @@ const VoiceSetStep02 = () => {
 
       {openModal && (
         <Dim onClick={() => setOpenModal(false)}>
-          <Modal role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <Modal onClick={(e) => e.stopPropagation()}>
             <ModalTitle>등록이 완료되지 않았어요</ModalTitle>
             <ModalDesc>
               지금 나가면
@@ -212,7 +212,7 @@ const VoiceSetStep02 = () => {
             </ModalDesc>
 
             <BtnRow>
-              <ModalBtnGray onClick={() => navigate("/onboarding/step_04")}>
+              <ModalBtnGray onClick={() => navigate("/mypage/voice_set/main")}>
                 나가기
               </ModalBtnGray>
               <ModalBtnYellow onClick={() => setOpenModal(false)}>
@@ -228,7 +228,6 @@ const VoiceSetStep02 = () => {
 
 export default VoiceSetStep02;
 
-/* ---------------- Styled Components ---------------- */
 
 const Screen = styled.div`
   display: flex;

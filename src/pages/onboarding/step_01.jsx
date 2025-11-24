@@ -306,6 +306,7 @@ const ModalBtnGray = styled.button`
   border-radius: 99px;
   color: #7a7a7a;
   font-weight: 800;
+  border: none;
 `;
 
 const ModalBtnYellow = styled.button`
@@ -315,5 +316,6 @@ const ModalBtnYellow = styled.button`
   border-radius: 99px;
   color: #fff;
   font-weight: 800;
+  border: none;
 `;
 

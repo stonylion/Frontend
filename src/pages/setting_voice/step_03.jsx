@@ -1,35 +1,61 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
 import Button from "../../components/Button.jsx";
+import api from "../../api/axios.js";
 
 const AVATARS = [
-  { key: "dog",   src: "/img/onboarding/Avatar.svg" },
-  { key: "bear",  src: "/img/onboarding/Avatar_1.svg" },
-  { key: "cat",   src: "/img/onboarding/Avatar_3.svg" },
+  { key: "dog", src: "/img/onboarding/Avatar.svg" },
+  { key: "bear", src: "/img/onboarding/Avatar_1.svg" },
+  { key: "cat", src: "/img/onboarding/Avatar_3.svg" },
   { key: "alien", src: "/img/onboarding/Avatar_4.svg" },
 ];
 
+// voice_image_code 매핑
+const IMAGE_CODE_MAP = {
+  dog: "voice1",
+  bear: "voice2",
+  cat: "voice3",
+  alien: "voice4",
+};
+
 const VoiceSetStep03 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const { voiceId, userName } = location.state || {};
+
   const [selected, setSelected] = useState(AVATARS[0].key);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(userName || "");
 
-  // 기존 경고 모달
   const [openModal, setOpenModal] = useState(false);
-
-  // 새 "등록 완료" 모달
   const [openCompleteModal, setOpenCompleteModal] = useState(false);
 
   const current = AVATARS.find((a) => a.key === selected) || AVATARS[0];
 
-  // "등록하기" 버튼 → 완료 모달 열기
-  const handleSubmit = () => {
-    setOpenCompleteModal(true);
+  /* 최종 저장 API (PATCH) */
+  const handleSubmit = async () => {
+    if (!voiceId) {
+      alert("voiceId가 없습니다. 처음 단계부터 다시 진행해주세요.");
+      return;
+    }
+
+    try {
+      await api.patch(`/api/accounts/voice/${voiceId}/`, {
+        voice_name: name.trim(),
+        voice_image_code: IMAGE_CODE_MAP[selected],
+      });
+
+      console.log("😊 최종 보이스 데이터 저장 완료");
+
+      setOpenCompleteModal(true);
+    } catch (err) {
+      console.error("⚠️ 보이스 저장 실패:", err);
+      alert("보이스 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  // 기존 모달 → 나가기
   const handleExit = () => {
     setOpenModal(false);
     navigate("/mypage/voice_set/main");
@@ -49,6 +75,7 @@ const VoiceSetStep03 = () => {
       <Content>
         <MainIllust src={current.src} alt="선택된 캐릭터" />
 
+        {/* 캐릭터 선택 */}
         <SelectorRow>
           {AVATARS.map(({ key, src }) => (
             <SelectButton
@@ -62,6 +89,7 @@ const VoiceSetStep03 = () => {
           ))}
         </SelectorRow>
 
+        {/* 이름 입력 */}
         <FieldGroup>
           <FieldLabel>이름</FieldLabel>
           <Input
@@ -76,17 +104,17 @@ const VoiceSetStep03 = () => {
 
       {/* 등록하기 버튼 */}
       <BottomArea>
-        <Button $bgColor="#342E29" $color="#FFF" onClick={handleSubmit}>
+        <Button bgColor="#342E29" color="#FFF" onClick={handleSubmit}>
           <BtnContent>
             <BtnText>등록하기</BtnText>
           </BtnContent>
         </Button>
       </BottomArea>
 
-      {/* 기존 모달 (나가기 경고) */}
+      {/* 나가기 경고 모달 */}
       {openModal && (
         <Dim onClick={() => setOpenModal(false)}>
-          <Modal role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <Modal onClick={(e) => e.stopPropagation()}>
             <ModalTitle>등록이 완료되지 않았어요</ModalTitle>
             <ModalDesc>
               지금 나가면
@@ -96,16 +124,18 @@ const VoiceSetStep03 = () => {
 
             <BtnRow>
               <ModalBtnGray onClick={handleExit}>나가기</ModalBtnGray>
-              <ModalBtnYellow onClick={() => setOpenModal(false)}>이어서 등록</ModalBtnYellow>
+              <ModalBtnYellow onClick={() => setOpenModal(false)}>
+                이어서 등록
+              </ModalBtnYellow>
             </BtnRow>
           </Modal>
         </Dim>
       )}
 
-      {/* 새 모달 (등록 완료) */}
+      {/* 등록 완료 모달 */}
       {openCompleteModal && (
         <Dim onClick={() => setOpenCompleteModal(false)}>
-          <Modal role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <Modal onClick={(e) => e.stopPropagation()}>
             <ModalTitle>목소리가 등록되었어요</ModalTitle>
             <ModalDesc>
               이제 이 목소리로
@@ -113,18 +143,14 @@ const VoiceSetStep03 = () => {
               동화를 들을 수 있어요.
             </ModalDesc>
 
-            <Button
-              $bgColor="#FFD342"
-              $color="#FFF"
-              $width="100%"
-              $height="48px"
+            <ModalBtnSingle
               onClick={() => {
                 setOpenCompleteModal(false);
                 navigate("/mypage/voice_set/main");
               }}
             >
               확인
-            </Button>
+            </ModalBtnSingle>
           </Modal>
         </Dim>
       )}
@@ -133,9 +159,6 @@ const VoiceSetStep03 = () => {
 };
 
 export default VoiceSetStep03;
-
-
-/* ===== 스타일 ===== */
 
 const Screen = styled.div`
   position: relative;
@@ -241,33 +264,30 @@ const BtnText = styled.span`
 `;
 
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background-color: rgba(0, 0, 0, 0.4);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 999;
 `;
 
-
 const Modal = styled.div`
   width: 320px;
-  height: 196px;
+  height: auto;
   padding: 24px 24px 16px 24px;
   background: #fff;
   border-radius: 16px;
-
   display: flex;
   flex-direction: column;
   gap: 22px;
   justify-content: center;
   align-items: center;
 `;
-
 
 const ModalTitle = styled.h3`
   margin: 6px 0 8px;
@@ -282,7 +302,7 @@ const ModalDesc = styled.p`
   font-size: 14px;
   font-family: NanumSquareRound;
   line-height: 22px;
-  width: 100%;
+  text-align: center;
   max-width: 272px;
 `;
 
@@ -301,7 +321,6 @@ const ModalBtnGray = styled.button`
   color: #7a7a7a;
   font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
 `;
 
 const ModalBtnYellow = styled.button`
@@ -313,6 +332,16 @@ const ModalBtnYellow = styled.button`
   color: #fff;
   font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
 `;
 
+const ModalBtnSingle = styled.button`
+  width: 272px; /* gray + gap + yellow */
+  height: 40px;
+  background-color: #ffd342;
+  border-radius: 99px;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+`;

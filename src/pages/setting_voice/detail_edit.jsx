@@ -5,10 +5,10 @@ import Header from "../../components/Header.jsx";
 import Button from "../../components/Button.jsx";
 
 const AVATARS = [
-  { key: "dog", src: "/img/onboarding/Avatar.svg" },
-  { key: "bear", src: "/img/onboarding/Avatar_1.svg" },
-  { key: "cat", src: "/img/onboarding/Avatar_3.svg" },
-  { key: "alien", src: "/img/onboarding/Avatar_4.svg" },
+  { key: "voice1", src: "/img/onboarding/Avatar.svg" },
+  { key: "voice2", src: "/img/onboarding/Avatar_1.svg" },
+  { key: "voice3", src: "/img/onboarding/Avatar_3.svg" },
+  { key: "voice4", src: "/img/onboarding/Avatar_4.svg" },
 ];
 
 const VoiceSetDetailedit = () => {
