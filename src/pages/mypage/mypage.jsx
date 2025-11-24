@@ -128,15 +128,15 @@ function Mypage() {
 
             <ModifyContainer>
                 <ModifyHeader>목소리 설정</ModifyHeader>
-                <ModifyContent>
+                <ModifyContent onClick={() => navigate('/mypage/voice_set/main')}>
                     나의 목소리
                     <ArrowRightBtn><img src='/icons/arrow-right-black.svg' width={16}/></ArrowRightBtn>
                 </ModifyContent>
-                <ModifyContent>
+                <ModifyContent onClick={() => navigate('/mypage/voice_set/main')}>
                     성우 목소리
                     <ArrowRightBtn><img src='/icons/arrow-right-black.svg' width={16}/></ArrowRightBtn>
                 </ModifyContent>
-                <RegisterContent>+ 등록하기</RegisterContent>
+                <RegisterContent onClick={() => navigate('/mypage/voice_set/step01')}>+ 등록하기</RegisterContent>
             </ModifyContainer>
 
             <ModifyContainer>

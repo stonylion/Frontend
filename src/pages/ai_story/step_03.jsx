@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import styled, { keyframes, css } from "styled-components";
+import styled from "styled-components";
 import Header from "../../components/Header.jsx";
 import { useNavigate } from "react-router-dom";
 
@@ -9,15 +9,18 @@ const ICON_RIGHT = "/img/ai_story/right.svg";
 const Storystep03 = () => {
   const navigate = useNavigate();
   const [text, setText] = useState("");
-  const [error, setError] = useState(false); // 50자 미만 에러
+  const [isFocused, setIsFocused] = useState(false); // 포커스 여부
   const [showQuitModal, setShowQuitModal] = useState(false);
 
+  const isRed = isFocused && text.trim().length < 50; // 클릭 + 50자 미만
+  const isYellow = text.trim().length >= 50; // 50자 이상
+
   const handleNext = () => {
-    if (text.trim().length < 50) {
-      setError(true);
-      return;
-    }
-    navigate("/mystory/ai_story/step04");
+    if (!isYellow) return;
+
+    navigate("/mystory/ai_story/step04", {
+      state: { text }, // 데이터 자동 전달 다음 페이지로
+    });
   };
 
   return (
@@ -43,18 +46,13 @@ const Storystep03 = () => {
         <InputBox
           placeholder="구체적인 템플릿을 플레이스홀더로 넣기"
           value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            if (e.target.value.trim().length >= 50) setError(false);
-          }}
-          $error={error}
-          $shake={error}
+          onFocus={() => setIsFocused(true)}
+          onChange={(e) => setText(e.target.value)}
+          $red={isRed}
+          $yellow={isYellow}
         />
-        <GuideText>최소 50자 이상 입력해주세요.</GuideText>
 
-        {error && (
-          <ErrorMsg>50자 이상 입력해야 다음 단계로 넘어갈 수 있어요.</ErrorMsg>
-        )}
+        <GuideText $red={isRed}>최소 50자 이상 입력해주세요.</GuideText>
       </Content>
 
       <BottomArea>
@@ -63,12 +61,11 @@ const Storystep03 = () => {
           <ArrowIcon src={ICON_RIGHT} />
         </VoiceText>
 
-        <NextButton disabled={text.trim().length < 50} onClick={handleNext}>
+        <NextButton disabled={!isYellow} onClick={handleNext}>
           다음
         </NextButton>
       </BottomArea>
 
-      {/* 모달 */}
       {showQuitModal && (
         <Dim onClick={() => setShowQuitModal(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
@@ -96,11 +93,6 @@ const Storystep03 = () => {
 
 export default Storystep03;
 
-const shake = keyframes`
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-5px); }
-  40%, 80% { transform: translateX(5px); }
-`;
 
 const Screen = styled.div`
   display: flex;
@@ -114,6 +106,7 @@ const ProgressWrapper = styled.div`
   height: 4px;
   background: #f2f2f2;
 `;
+
 const ProgressBar = styled.div`
   width: ${({ $progress }) => $progress || 0}%;
   height: 100%;
@@ -142,23 +135,28 @@ const SubText = styled.p`
   font-size: 12px;
 `;
 
+
 const InputBox = styled.textarea`
   width: 100%;
   height: 456px;
-  border: 1px solid ${({ $error }) => ($error ? "#F44336" : "#e8e8e8")};
-  border-radius: 8px;
-  background: #fff;
   padding: 12px;
   resize: none;
+  border-radius: 8px;
   font-family: NanumSquareRound;
   font-size: 14px;
   color: #393939;
 
-  ${({ $shake }) =>
-    $shake &&
-    css`
-      animation: ${shake} 0.3s ease;
-    `}
+  border: 2px solid
+    ${({ $red, $yellow }) =>
+      $red ? "#FF4242" : $yellow ? "#FFD342" : "#e8e8e8"};
+
+  box-shadow:
+    ${({ $red, $yellow }) =>
+      $red
+        ? "0 0 0 3px rgba(255, 66, 66, 0.28)"
+        : $yellow
+        ? "0 0 0 3px rgba(255, 211, 66, 0.25)"
+        : "none"};
 
   &::placeholder {
     color: #bbb;
@@ -166,34 +164,16 @@ const InputBox = styled.textarea`
 
   &:focus {
     outline: none;
-    border-color: ${({ $error }) => ($error ? "#F44336" : "#FFD342")};
-    box-shadow: ${({ $error }) =>
-      $error
-        ? "0 0 0 3px rgba(244, 67, 54, 0.15)"
-        : "0 0 0 3px rgba(255, 211, 66, 0.25)"};
   }
 `;
 
 const GuideText = styled.div`
-  display: flex;
-  padding: 0 16px;
-  align-items: flex-start;
-  gap: 16px;
-  align-self: stretch;
-  color: var(--color-text-tertiary, #BBB);
-
+  margin-left: 4px;
+  color: ${({ $red }) => ($red ? "#FF4242" : "#BBB")};
   font-family: NanumSquareRound;
   font-size: 12px;
-  font-style: normal;
   font-weight: 400;
   line-height: 20px;
-  flex: 1 0 0;
-`;
-
-const ErrorMsg = styled.div`
-  color: #F44336;
-  font-size: 13px;
-  margin-top: 6px;
 `;
 
 const BottomArea = styled.div`
@@ -206,7 +186,6 @@ const BottomArea = styled.div`
 
 const VoiceText = styled.p`
   color: #bbb;
-  text-align: center;
   font-family: NanumSquareRound;
   font-size: 14px;
   cursor: pointer;
@@ -254,6 +233,7 @@ const Modal = styled.div`
   padding: 24px 24px 16px;
   background: #fff;
   border-radius: 16px;
+
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -264,7 +244,6 @@ const ModalTitle = styled.h3`
   color: #393939;
   font-size: 20px;
   font-weight: 800;
-  text-align: center;
 `;
 
 const ModalDesc = styled.p`

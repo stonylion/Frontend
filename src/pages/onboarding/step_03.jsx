@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import GlobalStyle from '../../components/GlobalStyle.jsx';
 import { useNavigate } from 'react-router-dom';
@@ -7,21 +7,25 @@ import Button from '../../components/Button.jsx';
 
 const Onboardingsetp03 = () => {
   const navigate = useNavigate();
+  const [username, setUsername] = useState("");
+
+  // 회원가입 단계에서 저장한 username 불러오기
+  useEffect(() => {
+    const saved = localStorage.getItem("username");
+    if (saved) setUsername(saved);
+  }, []);
 
   return (
     <>
-      {/* 전역 스타일*/}
       <GlobalStyle />
 
       <Screen>
-        {/* 헤더: 뒤로가기 X, 이름 수정 */}
         <Header
           title="목소리 설정"
           showBack={false}
           action={false}
         />
 
-        {/* 중앙 콘텐츠 */}
         <Content>
           <Illust
             src="/img/onboarding/character_main.svg"
@@ -32,14 +36,16 @@ const Onboardingsetp03 = () => {
             <br />
             완료되었어요 :)
           </Title>
+
           <Subtitle>
-            이제 아이에게 목소리를 들려줄 때 00님의 목소리가 함께해요.
+            이제 아이에게 목소리를 들려줄 때 {username}님의 목소리가 함께해요.
           </Subtitle>
         </Content>
 
-        {/* 하단 버튼 */}
         <BottomArea>
-          <Button onClick={() => navigate('/onboarding/step_04')}>다음</Button>
+          <Button onClick={() => navigate('/onboarding/step_04')}>
+            다음
+          </Button>
         </BottomArea>
       </Screen>
     </>
@@ -48,7 +54,7 @@ const Onboardingsetp03 = () => {
 
 export default Onboardingsetp03;
 
-// 스타일 컴포넌트
+// ===== 스타일 =====
 const Screen = styled.div`
   display: flex;
   flex-direction: column;

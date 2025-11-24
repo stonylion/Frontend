@@ -9,12 +9,28 @@ const api = axios.create({
 // 요청 인터셉터
 api.interceptors.request.use(
     (config) => {
+
+        // 1️⃣ 토큰을 붙이지 않을 API들 (비로그인 요청)
+        const noAuthUrls = [
+            "/api/accounts/signup/",
+            "/api/accounts/login/",
+        ];
+
+        // 2️⃣ 해당 요청은 Authorization 헤더 제거
+        if (noAuthUrls.includes(config.url)) {
+            if (config.headers?.Authorization) {
+                delete config.headers.Authorization;
+            }
+            return config;
+        }
+
+        // 3️⃣ 나머지 요청에는 토큰 자동 추가
         const token = localStorage.getItem("access_token");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // POST/PUT/PATCH 요청인 경우만 Content-Type 추가
+        // 4️⃣ POST/PUT/PATCH 요청에만 Content-Type 추가
         if (["post", "put", "patch"].includes(config.method)) {
             config.headers["Content-Type"] = "application/json";
         }

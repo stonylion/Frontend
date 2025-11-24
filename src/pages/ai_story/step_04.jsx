@@ -1,23 +1,18 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const ICON_RIGHT_HEADER = "/icons/new_right_part.svg";
 const ICON_RIGHT = "/img/ai_story/right.svg";
 
 const Storystep04 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // 더미 데이터
-  const [text, setText] = useState(
-    `옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 
+  const incomingText = location.state?.text || "";
 
-여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 
-
-여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. .는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. .는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.`
-  );
-
+  const [text, setText] = useState(incomingText);
   const [showQuitModal, setShowQuitModal] = useState(false);
 
   return (
@@ -40,10 +35,8 @@ const Storystep04 = () => {
         <Label>에피소드</Label>
         <SubText>자유롭게 수정해 보세요.</SubText>
 
-        <InputBox
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+        <InputBox value={text} onChange={(e) => setText(e.target.value)} />
+
         <GuideText>최소 50자 이상 입력해주세요.</GuideText>
       </Content>
 
@@ -61,7 +54,6 @@ const Storystep04 = () => {
         </NextButton>
       </BottomArea>
 
-      {/* 모달 */}
       {showQuitModal && (
         <Dim onClick={() => setShowQuitModal(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
@@ -90,6 +82,7 @@ const Storystep04 = () => {
 export default Storystep04;
 
 
+
 const Screen = styled.div`
   display: flex;
   flex-direction: column;
@@ -115,7 +108,6 @@ const Content = styled.div`
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 `;
 
 const Label = styled.h3`
@@ -137,15 +129,12 @@ const InputBox = styled.textarea`
   height: 456px;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
-  background: #fff;
   padding: 12px;
   resize: none;
-  overflow: hidden;
 
-  color: #393939;
   font-family: NanumSquareRound;
   font-size: 16px;
-  line-height: 24px;
+  color: #393939;
 
   &::placeholder {
     color: #bbb;
@@ -158,19 +147,11 @@ const InputBox = styled.textarea`
 `;
 
 const GuideText = styled.div`
-  display: flex;
   padding: 0 16px;
-  align-items: flex-start;
-  gap: 16px;
-  align-self: stretch;
-  color: var(--color-text-tertiary, #BBB);
-
+  color: #bbb;
   font-family: NanumSquareRound;
   font-size: 12px;
-  font-style: normal;
-  font-weight: 400;
   line-height: 20px;
-  flex: 1 0 0;
 `;
 
 const BottomArea = styled.div`
@@ -183,7 +164,6 @@ const BottomArea = styled.div`
 
 const VoiceText = styled.p`
   color: #bbb;
-  text-align: center;
   font-family: NanumSquareRound;
   font-size: 14px;
   cursor: pointer;
@@ -213,7 +193,6 @@ const NextButton = styled.button`
   }
 `;
 
-
 const Dim = styled.div`
   position: absolute;
   inset: 0;
@@ -223,7 +202,6 @@ const Dim = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 999;
 `;
 
 const Modal = styled.div`
@@ -243,13 +221,11 @@ const ModalTitle = styled.h3`
   color: #393939;
   font-size: 20px;
   font-weight: 800;
-  text-align: center;
 `;
 
 const ModalDesc = styled.p`
   color: #7a7a7a;
   font-size: 14px;
-  font-weight: 700;
   text-align: center;
   line-height: 22px;
 `;

@@ -3,10 +3,20 @@ import styled, { keyframes, css } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header.jsx';
 import Button from '../../components/Button.jsx';
+import api from "../../api/axios.js";
 
-const RECORD_ICON = '/img/onboarding/sound.svg'; // 녹음하기 아이콘 경로
 
+const RECORD_ICON = '/img/onboarding/sound.svg';
 
+// voice_image_code 매핑 테이블
+const IMAGE_CODE = {
+  dog: 'voice1',
+  bear: 'voice2',
+  cat: 'voice3',
+  alien: 'voice4',
+};
+
+// 캐릭터 목록
 const CHARACTERS = [
   { key: 'dog', src: '/img/onboarding/Avatar.svg' },
   { key: 'bear', src: '/img/onboarding/Avatar_1.svg' },
@@ -19,17 +29,39 @@ const OnboardingStep01 = () => {
   const [selected, setSelected] = useState(CHARACTERS[0].key);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [error, setError] = useState(false); // 미입력 에러
+  const [error, setError] = useState(false);
 
   const current = CHARACTERS.find(c => c.key === selected) || CHARACTERS[0];
 
-  // 버튼 클릭 시 상태 검증
-  const handleNext = () => {
+
+  const handleNext = async () => {
     if (name.trim() === '') {
-      setError(true); 
+      setError(true);
       return;
     }
-    navigate('/onboarding/step_02');
+
+    try {
+      const body = {
+        voice_name: name,
+        voice_image_code: IMAGE_CODE[selected], // 매핑된 code
+      };
+
+      const res = await api.post('api/accounts/voice/', body);
+
+      const voiceId = res.data.voice_id;
+
+      // Step02로 voice 정보 전달
+      navigate('/onboarding/step_02', {
+        state: {
+          voiceId,
+          voiceName: name,
+          voiceImageCode: IMAGE_CODE[selected],
+        },
+      });
+    } catch (error) {
+      console.error('목소리 정보 저장 오류:', error);
+      alert('목소리 정보를 저장하는 중 문제가 발생했습니다.');
+    }
   };
 
   return (
@@ -42,10 +74,8 @@ const OnboardingStep01 = () => {
       />
 
       <Content>
-        {/* 선택된 캐릭터 크게 표시 */}
         <MainIllust src={current.src} alt="선택된 캐릭터" />
 
-        {/* 캐릭터 선택 리스트 */}
         <SelectorRow>
           {CHARACTERS.map(({ key, src }) => (
             <SelectButton
@@ -59,7 +89,6 @@ const OnboardingStep01 = () => {
           ))}
         </SelectorRow>
 
-        {/* 이름 입력 */}
         <FieldGroup>
           <FieldLabel>이름</FieldLabel>
           <Input
@@ -67,18 +96,18 @@ const OnboardingStep01 = () => {
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              if (e.target.value.trim() !== '') setError(false); // 입력 시 에러 해제
+              if (e.target.value.trim() !== '') setError(false);
             }}
             placeholder="이름을 입력해주세요."
             aria-label="이름 입력"
             $error={error}
-            $shake={error} // 흔들림 애니메이션 트리거
+            $shake={error}
           />
           {error && <ErrorText>목소리 이름을 입력해주세요.</ErrorText>}
         </FieldGroup>
       </Content>
 
-            {/* 모달창*/}
+      {/* 모달 */}
       {open && (
         <Dim onClick={() => setOpen(false)}>
           <Modal role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -115,8 +144,8 @@ const OnboardingStep01 = () => {
 
 export default OnboardingStep01;
 
-//스타일 컴포넌트
-//미입력 시 애니메이션 정의
+
+
 const shake = keyframes`
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-5px); }
@@ -140,12 +169,9 @@ const Content = styled.section`
 
 const MainIllust = styled.img`
   width: 144px;
-  height: auto;
   margin-top: 48px;
   margin-bottom: 32px;
   object-fit: contain;
-  user-select: none;
-  pointer-events: none;
 `;
 
 const SelectorRow = styled.div`
@@ -160,26 +186,20 @@ const SelectButton = styled.button`
   padding: 0;
   width: 62px;
   height: 62px;
-  aspect-ratio: 1 / 1;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  -webkit-tap-highlight-color: transparent;
   border: ${({ $active }) => ($active ? '2px solid #FFD342' : '2px solid transparent')};
   box-shadow: ${({ $active }) =>
     $active ? '0 0 0 2px rgba(255, 211, 66, 0.25) inset' : 'none'};
-  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
-  &:active {
-    transform: scale(0.98);
-  }
+  transition: 120ms ease;
 `;
 
 const SelectIllust = styled.img`
   width: 56px;
   height: 56px;
   object-fit: contain;
-  pointer-events: none;
 `;
 
 const FieldGroup = styled.div`
@@ -191,7 +211,6 @@ const FieldLabel = styled.div`
   font-size: 16px;
   font-weight: 700;
   font-family: NanumSquareRound;
-  color: #3a372f;
   margin-bottom: 8px;
 `;
 
@@ -200,43 +219,24 @@ const Input = styled.input`
   height: 52px;
   border-radius: 12px;
   border: 1px solid ${({ $error }) => ($error ? '#F44336' : '#eee')};
-  background: #fff;
   padding: 0 16px;
   font-size: 16px;
-  font-family: NanumSquareRound;
-  color: #393939;
-  box-sizing: border-box;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-
+  transition: 0.2s;
   ${({ $shake }) =>
     $shake &&
     css`
       animation: ${shake} 0.3s ease;
     `}
-
-  &::placeholder {
-    color: #bdbdbd;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: ${({ $error }) => ($error ? '#F44336' : '#FFD342')};
-    box-shadow: ${({ $error }) =>
-      $error
-        ? '0 0 0 3px rgba(244, 67, 54, 0.15)'
-        : '0 0 0 3px rgba(255, 211, 66, 0.25)'};
-  }
 `;
 
 const ErrorText = styled.div`
   color: #f44336;
   font-size: 13px;
   margin-top: 6px;
-  font-family: NanumSquareRound;
 `;
 
 const BottomArea = styled.div`
-  padding: 0 24px calc(env(safe-area-inset-bottom, 0) + 20px);
+  padding: 0 24px 20px;
   display: flex;
   justify-content: center;
 `;
@@ -244,84 +244,57 @@ const BottomArea = styled.div`
 const BtnContent = styled.span`
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  font-weight: 800;
 `;
 
 const BtnIcon = styled.img`
   width: 18px;
-  height: 18px;
-  object-fit: contain;
-  display: block;
 `;
 
 const BtnText = styled.span`
-  color: var(--color-text-interactive-inverse, #FFF);
-  text-align: center;
   font-family: 'NanumSquareRound';
-  font-size: 16px;
-  font-style: normal;
   font-weight: 800;
-  line-height: 24px;
+  font-size: 16px;
+  color: #fff;
 `;
 
-//모달 스타일
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 999;
 `;
-
 
 const Modal = styled.div`
   width: 320px;
   height: 196px;
-  padding: 24px 24px 16px 24px;
+  padding: 24px;
   background: #fff;
   border-radius: 16px;
-
   display: flex;
   flex-direction: column;
   gap: 22px;
-  justify-content: center;
   align-items: center;
 `;
 
-
 const ModalTitle = styled.h3`
-  margin: 6px 0 8px;
-  color: #3a372f;
   font-size: 20px;
   font-weight: 800;
-  line-height: 28px;
-  letter-spacing: -0.01em;
   text-align: center;
 `;
 
 const ModalDesc = styled.p`
-  margin: 0 0 16px;
-  color: #7a7a7a;
   font-size: 14px;
-  font-family: NanumSquareRound;
-  line-height: 22px;
-  width: 100%;
-  max-width: 272px;
+  color: #7a7a7a;
   text-align: center;
-  margin-left: auto;
-  margin-right: auto;
 `;
 
 const BtnRow = styled.div`
-  margin-top: 8px;
-  margin-bottom: 4px;
   display: flex;
   gap: 12px;
 `;
@@ -329,24 +302,18 @@ const BtnRow = styled.div`
 const ModalBtnGray = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #f1f1f1;
+  background: #f1f1f1;
   border-radius: 99px;
-  border: none;
   color: #7a7a7a;
-  font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
 `;
 
 const ModalBtnYellow = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #ffd342;
+  background: #ffd342;
   border-radius: 99px;
-  border: none;
   color: #fff;
-  font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
 `;
 

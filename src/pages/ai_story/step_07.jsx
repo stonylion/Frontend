@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/axios.js";
 
 const EDIT_ICON = "/img/setting_voice/edit.svg";
 const ICON_ROTATE = "/img/ai_story/rotate.svg";
@@ -12,16 +13,36 @@ const Storystep07 = () => {
 
   const [title, setTitle] = useState("여우, 두루미와의 피크닉");
   const [story, setStory] = useState(
-    `옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요.
-
-여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요.
-
-여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.`
+    `옛날옛날에 여우와 두루미가 살았어요...`
   );
 
   const [isEditing, setIsEditing] = useState(false);
-
   const [showModal, setShowModal] = useState(false);
+
+  // =========================
+  // 🔥 AI 스토리 다시 쓰기 로직
+  // =========================
+  const handleRewrite = async () => {
+    try {
+      // 1) Redis 초기화
+      await api.post("/api/story/reset/");
+
+      // 2) 다시 스토리 생성
+      const res = await api.post("/api/story/generate/");
+      const newStory = res.data;
+
+      // 3) step07 화면에 새 스토리 전달
+      navigate("/mystory/ai_story/step07", {
+        state: {
+          title: newStory.title,
+          content: newStory.content,
+        },
+      });
+    } catch (err) {
+      console.log("❌ 다시쓰기 오류:", err);
+    }
+  };
+
   const handleExit = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
 
@@ -63,7 +84,7 @@ const Storystep07 = () => {
       </Content>
 
       <BottomArea>
-        <RewriteRow onClick={() => navigate("/mystory/ai_story/step06")}>
+        <RewriteRow onClick={handleRewrite}>
           <RewriteText>AI 스토리 다시쓰기</RewriteText>
           <RewriteIcon src={ICON_ROTATE} alt="icon" />
         </RewriteRow>
@@ -102,6 +123,10 @@ const Storystep07 = () => {
 
 export default Storystep07;
 
+
+// ===============================
+//           STYLES
+// ===============================
 
 const Screen = styled.div`
   display: flex;
@@ -158,12 +183,6 @@ const TitleInput = styled.input`
   outline: none;
   font-family: NanumSquareRound;
   font-size: 16px;
-
-  ${({ readOnly }) =>
-    readOnly &&
-    `
-    color: #7a7a7a;
-  `}
 `;
 
 const EditIcon = styled.img`
@@ -180,10 +199,8 @@ const StoryBox = styled.textarea`
   padding: 12px;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
-
   resize: none;
   overflow-y: auto;
-
   font-family: NanumSquareRound;
   font-size: 16px;
   line-height: 24px;
@@ -303,4 +320,3 @@ const ModalBtnYellow = styled.button`
   font-size: 14px;
   font-weight: 800;
 `;
-

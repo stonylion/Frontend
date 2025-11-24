@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../../components/Header.jsx";
-import Button from "../../components/Button.jsx";
+import api from "../../api/axios.js";
 
 const ICON_RIGHT_HEADER = "/icons/new_right_part.svg";
 const LIGHTNING_ICON = "/img/ai_story/flash.svg";
 const ADD_ICON = "/img/ai_story/add.svg";
 
-const RECOMMENDED_VALUES = ["끈기", "배려", "인내"];
-const ALL_VALUES = [
-  "가족", "감사", "공감", "나눔", "노력", "다양성",
-  "사랑", "생명", "신뢰", "용기", "우정", "정직",
-  "존중", "절제", "책임감", "희망"
-];
-
 const Storystep05 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const storyText = location.state?.text || "";
 
   const [selected, setSelected] = useState([]);
   const [recommended, setRecommended] = useState([]);
@@ -24,39 +20,73 @@ const Storystep05 = () => {
 
   const [customInput, setCustomInput] = useState("");
   const [customList, setCustomList] = useState([]);
-  const [focused, setFocused] = useState(false);
 
-  const [showQuitModal, setShowQuitModal] = useState(false);
+  const DEFAULT_MORALS = [
+    "가족","감사","공감","나눔","노력","다양성",
+    "사랑","생명","신뢰","용기","우정","정직",
+    "존중","절제","책임감","희망"
+  ];
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setRecommended(RECOMMENDED_VALUES);
-      setLoading(false);
-    }, 5000);
-    return () => clearTimeout(timer);
+    const fetchMorals = async () => {
+      try {
+        const res = await api.post("/api/story/story-morals/recommend/", {
+          text: storyText
+        });
+
+        setRecommended(res.data.recommended_morals);
+      } catch (err) {
+        console.log("❌ 추천 교훈 API 오류:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMorals();
   }, []);
 
-  const toggleValue = (value) => {
-    if (selected.includes(value)) {
-      setSelected(selected.filter((v) => v !== value));
-    } else if (selected.length < 3) {
-      setSelected([...selected, value]);
+  // 선택 토글
+  const toggleValue = (v) => {
+    if (selected.includes(v)) {
+      setSelected(selected.filter((x) => x !== v));
+    } else if (selected.length + customList.length < 3) {
+      setSelected([...selected, v]);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && customInput.trim() !== "") {
+  // 커스텀 입력 엔터
+  const handleEnter = (e) => {
+    if (e.key === "Enter" && customInput.trim()) {
       e.preventDefault();
-      if (customList.length < 3) {
+      if (selected.length + customList.length < 3) {
         setCustomList([...customList, customInput.trim()]);
         setCustomInput("");
-        setFocused(false);
       }
     }
   };
 
-  const removeCustom = (value) => {
-    setCustomList(customList.filter((v) => v !== value));
+  const removeCustom = (v) => {
+    setCustomList(customList.filter((x) => x !== v));
+  };
+
+  const handleNext = async () => {
+    try {
+      // 기본 교훈 → id로 변환
+      const selected_morals_ids = selected
+        .map((text) => DEFAULT_MORALS.indexOf(text) + 1)
+        .filter((id) => id > 0);
+
+      await api.post("/api/story/story-morals/", {
+        selected_morals: selected_morals_ids,
+        custom_morals: customList
+      });
+
+      navigate("/mystory/ai_story/step06", {
+        state: { text: storyText }
+      });
+    } catch (err) {
+      console.log("❌ 교훈 저장 API 오류:", err);
+    }
   };
 
   return (
@@ -65,10 +95,7 @@ const Storystep05 = () => {
         title="동화 만들기"
         showBack={true}
         onBack={() => navigate(-1)}
-        action={{
-          icon: ICON_RIGHT_HEADER,
-          handler: () => setShowQuitModal(true),
-        }}
+        action={{ icon: ICON_RIGHT_HEADER }}
       />
 
       <ProgressBarContainer>
@@ -76,120 +103,70 @@ const Storystep05 = () => {
       </ProgressBarContainer>
 
       <Content>
-        <TitleBox>
-          <Title>
-            교훈 <Star>*</Star>
-          </Title>
-          <Subtitle>최대 3개의 교훈을 선택할 수 있어요.</Subtitle>
-        </TitleBox>
+        <Title>교훈 선택 (최대 3개)</Title>
 
-        <AIBoxWrapper>
-          <AIBox>
-            <AIHeader>
-              <LightningIcon src={LIGHTNING_ICON} />
-              <AILabel>AI 추천 교훈</AILabel>
-            </AIHeader>
+        <AIBox>
+          <AIHeader>
+            <LightningIcon src={LIGHTNING_ICON} />
+            <AIText>AI 추천 교훈</AIText>
+          </AIHeader>
 
-            {loading ? (
-              <LoadingContainer>
-                <LoadingText>
-                  에피소드에 맞는 교훈을 찾고 있어요
-                  <Dots>
-                    <Dot delay="0s" color="#C1E776" />
-                    <Dot delay="0.2s" color="#E6E4E3" />
-                    <Dot delay="0.4s" color="#C1E776" />
-                  </Dots>
-                </LoadingText>
-              </LoadingContainer>
-            ) : (
-              <AITagList>
-                {recommended.map((v) => (
-                  <AITag
-                    key={v}
-                    onClick={() => toggleValue(v)}
-                    $active={selected.includes(v)}
-                  >
-                    {v}
-                  </AITag>
-                ))}
-              </AITagList>
-            )}
-          </AIBox>
-        </AIBoxWrapper>
+          {loading ? (
+            <LoadingBox>추천 교훈 생성 중...</LoadingBox>
+          ) : (
+            <AIList>
+              {recommended.map((m) => (
+                <AITag
+                  key={m.key}
+                  $active={selected.includes(m.name)}
+                  onClick={() => toggleValue(m.name)}
+                >
+                  {m.name}
+                </AITag>
+              ))}
+            </AIList>
+          )}
+        </AIBox>
 
         <TagList>
-          {ALL_VALUES.map((v) => (
-            <DefaultTag
-              key={v}
-              onClick={() => toggleValue(v)}
-              $active={selected.includes(v)}
+          {DEFAULT_MORALS.map((m) => (
+            <Tag
+              key={m}
+              $active={selected.includes(m)}
+              onClick={() => toggleValue(m)}
             >
-              {v}
-            </DefaultTag>
+              {m}
+            </Tag>
           ))}
         </TagList>
 
-        {/* 직접 입력 */}
         <CustomBox>
-          <Label>찾으시는 교훈이 없으신가요?</Label>
+          <Label>직접 입력</Label>
 
           <ChipContainer>
-            {customList.map((v) => (
-              <CustomChip key={v}>
-                {v}
-                <DeleteBtn onClick={() => removeCustom(v)}>×</DeleteBtn>
+            {customList.map((m) => (
+              <CustomChip key={m}>
+                {m}
+                <DeleteBtn onClick={() => removeCustom(m)}>×</DeleteBtn>
               </CustomChip>
             ))}
 
-            <InputWrapper>
-              <AddIconImg src={ADD_ICON} />
+            <InputWrap>
+              <AddIcon src={ADD_ICON} />
               <CustomInput
                 placeholder="직접 입력하기"
                 value={customInput}
                 onChange={(e) => setCustomInput(e.target.value)}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                onKeyDown={handleKeyDown}
+                onKeyDown={handleEnter}
               />
-            </InputWrapper>
+            </InputWrap>
           </ChipContainer>
         </CustomBox>
       </Content>
 
       <BottomArea>
-        <ButtonWrapper>
-          <Button
-            bgColor="#FFD342"
-            color="#342E29"
-            onClick={() => navigate("/mystory/ai_story/step06")}
-          >
-            다음
-          </Button>
-        </ButtonWrapper>
+        <NextButton onClick={handleNext}>다음</NextButton>
       </BottomArea>
-
-      {/* 종료 모달 */}
-      {showQuitModal && (
-        <Dim onClick={() => setShowQuitModal(false)}>
-          <Modal onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>앗! 그만두시겠어요?</ModalTitle>
-            <ModalDesc>
-              아직 동화를 완성하지 못했어요.
-              <br />
-              나가면 지금까지의 기록을 되돌릴 수 없어요.
-            </ModalDesc>
-
-            <ModalBtnRow>
-              <ModalBtnGray onClick={() => navigate("/home")}>
-                그만두기
-              </ModalBtnGray>
-              <ModalBtnYellow onClick={() => setShowQuitModal(false)}>
-                계속 제작하기
-              </ModalBtnYellow>
-            </ModalBtnRow>
-          </Modal>
-        </Dim>
-      )}
     </Screen>
   );
 };
@@ -207,7 +184,7 @@ const Screen = styled.div`
 const ProgressBarContainer = styled.div`
   width: 100%;
   height: 4px;
-  background: #f1f1f1;
+  background: #eee;
 `;
 
 const ProgressBar = styled.div`
@@ -221,38 +198,17 @@ const Content = styled.div`
   padding: 24px;
 `;
 
-const TitleBox = styled.div`
-  margin-bottom: 20px;
-`;
-
 const Title = styled.div`
   font-size: 16px;
   font-weight: 800;
-  font-family: NanumSquareRound;
-  color: #3a372f;
-`;
-
-const Star = styled.span`
-  color: #ff8041;
-`;
-
-const Subtitle = styled.div`
-  font-size: 14px;
-  color: #8d8d8d;
-`;
-
-const AIBoxWrapper = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 `;
 
 const AIBox = styled.div`
   padding: 16px;
-  width: calc(100% + 48px);
-  margin-left: -24px;
-
+  background: #fcfbe9;
   border-radius: 8px;
-  border: 1px solid #fcf9e6;
-  background: linear-gradient(274deg, #fcf9e6 -8.83%, #f2fbe0 100%);
+  margin-bottom: 20px;
 `;
 
 const AIHeader = styled.div`
@@ -263,70 +219,41 @@ const AIHeader = styled.div`
 
 const LightningIcon = styled.img`
   width: 16px;
-  height: 16px;
 `;
 
-const AILabel = styled.div`
+const AIText = styled.div`
   color: #c1e776;
-  font-weight: 800;
-`;
-
-const blink = keyframes`
-  0% { opacity: 0.2; }
-  50% { opacity: 1; }
-  100% { opacity: 0.2; }
-`;
-
-const LoadingContainer = styled.div`
-  margin-top: 10px;
-`;
-
-const LoadingText = styled.div`
-  display: flex;
-  align-items: center;
-  color: #bab6b2;
   font-weight: 700;
 `;
 
-const Dots = styled.div`
-  display: flex;
-  margin-left: 6px;
+const LoadingBox = styled.div`
+  margin-top: 10px;
+  color: #aaa;
+  font-size: 14px;
 `;
 
-const Dot = styled.span`
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: ${(p) => p.color};
-  margin-left: 4px;
-  animation: ${blink} 1.2s infinite;
-  animation-delay: ${(p) => p.delay};
-`;
-
-const AITagList = styled.div`
+const AIList = styled.div`
+  margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 8px;
 `;
 
 const AITag = styled.button`
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 999px;
+  padding: 8px 16px;
+  border-radius: 30px;
   font-weight: 800;
-  cursor: pointer;
 
   ${({ $active }) =>
     $active
       ? css`
           background: #c1e776;
           color: white;
-          border: none !important;
+          border: none;
         `
       : css`
-          border: 1px solid #d6f29c;
-          background: #f9fdf0;
+          border: 1px solid #d2f29c;
+          background: #f5fde9;
           color: #c1e776;
         `}
 `;
@@ -337,34 +264,33 @@ const TagList = styled.div`
   gap: 8px;
 `;
 
-const DefaultTag = styled.button`
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 999px;
-  font-weight: 600;
-  cursor: pointer;
+const Tag = styled.button`
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-weight: 700;
 
   ${({ $active }) =>
     $active
       ? css`
           background: #342e29;
           color: white;
-          border: none !important;
+          border: none;
         `
       : css`
           background: #f1f1f1;
-          color: #bbbbbb;
-          border: none !important; 
+          color: #bbb;
+          border: none;
         `}
 `;
 
 const CustomBox = styled.div`
-  margin-top: 24px;
+  margin-top: 20px;
 `;
 
 const Label = styled.div`
+  font-size: 14px;
   font-weight: 800;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 `;
 
 const ChipContainer = styled.div`
@@ -378,10 +304,9 @@ const CustomChip = styled.div`
   color: white;
   padding: 0 12px;
   height: 36px;
-
+  border-radius: 30px;
   display: flex;
   align-items: center;
-  border-radius: 999px;
 `;
 
 const DeleteBtn = styled.button`
@@ -392,19 +317,17 @@ const DeleteBtn = styled.button`
   cursor: pointer;
 `;
 
-const InputWrapper = styled.div`
+const InputWrap = styled.div`
   display: flex;
   align-items: center;
+  border: 1px solid #eee;
+  border-radius: 30px;
   height: 36px;
-  padding: 0 16px;
-
-  border: 1px solid #f1f1f1;
-  border-radius: 999px;
+  padding: 0 12px;
 `;
 
-const AddIconImg = styled.img`
+const AddIcon = styled.img`
   width: 14px;
-  height: 14px;
   margin-right: 6px;
 `;
 
@@ -419,78 +342,16 @@ const CustomInput = styled.input`
 `;
 
 const BottomArea = styled.div`
-  padding: 0 24px calc(env(safe-area-inset-bottom) + 16px);
-  display: flex;
-  justify-content: center;
+  padding: 24px;
 `;
 
-const ButtonWrapper = styled.div`
+const NextButton = styled.button`
   width: 100%;
-`;
-
-
-const Dim = styled.div`
-  position: absolute;
-  inset: 0;
-  width: 390px;
-  height: 852px;
-  background: rgba(0, 0, 0, 0.4);
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  z-index: 999;
-`;
-
-const Modal = styled.div`
-  width: 320px;
-  height: 196px;
-
-  padding: 24px 24px 16px;
-  background: #fff;
-  border-radius: 16px;
-
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  align-items: center;
-`;
-
-const ModalTitle = styled.div`
-  font-size: 20px;
-  font-weight: 800;
-  text-align: center;
-`;
-
-const ModalDesc = styled.div`
-  font-size: 14px;
-  color: #7a7a7a;
-  text-align: center;
-  line-height: 22px;
-`;
-
-const ModalBtnRow = styled.div`
-  display: flex;
-  gap: 12px;
-`;
-
-const ModalBtnGray = styled.button`
-  width: 130px;
-  height: 40px;
-  border-radius: 99px;
-  background: #f1f1f1;
-  color: #7a7a7a;
+  height: 56px;
+  border-radius: 999px;
   border: none;
-  font-weight: 800;
-`;
-
-const ModalBtnYellow = styled.button`
-  width: 130px;
-  height: 40px;
   background: #ffd342;
   color: white;
-  border-radius: 99px;
-  border: none;
   font-weight: 800;
+  font-size: 16px;
 `;

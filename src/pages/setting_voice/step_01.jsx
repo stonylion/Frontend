@@ -3,14 +3,15 @@ import styled, { keyframes, css } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header.jsx';
 import Button from '../../components/Button.jsx';
+import api from '../../api/axios.js';
 
 const RECORD_ICON = '/img/onboarding/sound.svg'; // 녹음하기
 
 const CHARACTERS = [
-  { key: 'dog',   src: '/img/onboarding/Avatar.svg' },
-  { key: 'bear',  src: '/img/onboarding/Avatar_1.svg' },
-  { key: 'cat',   src: '/img/onboarding/Avatar_3.svg' },
-  { key: 'alien', src: '/img/onboarding/Avatar_4.svg' },
+  { key: 'dog',   src: '/img/onboarding/Avatar.svg',     code: 'voice1' },
+  { key: 'bear',  src: '/img/onboarding/Avatar_1.svg',   code: 'voice2' },
+  { key: 'cat',   src: '/img/onboarding/Avatar_3.svg',   code: 'voice3' },
+  { key: 'alien', src: '/img/onboarding/Avatar_4.svg',   code: 'voice4' },
 ];
 
 const VoiceSetStep01 = () => {
@@ -18,17 +19,39 @@ const VoiceSetStep01 = () => {
   const [selected, setSelected] = useState(CHARACTERS[0].key);
   const [openModal, setOpenModal] = useState(false);
   const [name, setName] = useState('');
-  const [error, setError] = useState(false); // 미입력 에러 상태
+  const [error, setError] = useState(false);
 
   const current = CHARACTERS.find(c => c.key === selected) || CHARACTERS[0];
 
-  // 버튼 클릭 시 이름 입력 검증
-  const handleNext = () => {
+  // 🔥 voice_image_code 매핑
+  const voiceImageCode = current.code;
+
+  // 🔥 API 호출 포함한 Next 버튼
+  const handleNext = async () => {
     if (name.trim() === '') {
       setError(true);
       return;
     }
-    navigate('/mypage/voice_set/step02');
+
+    try {
+      const response = await api.post('/api/accounts/voice/', {
+        voice_name: name.trim(),
+        voice_image_code: voiceImageCode
+      });
+
+      console.log("🎉 메타데이터 생성 성공:", response.data);
+
+      const voiceId = response.data.voice_id;
+
+      // step02로 voice_id 전달
+      navigate('/mypage/voice_set/step02', {
+        state: { voiceId }
+      });
+
+    } catch (e) {
+      console.error("❌ 메타데이터 생성 실패:", e);
+      alert("목소리 등록 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -37,8 +60,9 @@ const VoiceSetStep01 = () => {
         title="목소리 등록하기"
         showBack={false}
         action={{
-    icon: "/icons/new_right_part.svg",
-    handler: () => setOpenModal(true), }}
+          icon: "/icons/new_right_part.svg",
+          handler: () => setOpenModal(true),
+        }}
       />
 
       <Content>
@@ -65,38 +89,43 @@ const VoiceSetStep01 = () => {
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              if (e.target.value.trim() !== '') setError(false); // 입력 시 에러 해제
+              if (e.target.value.trim() !== '') setError(false);
             }}
             placeholder="이름을 입력해주세요."
             aria-label="이름 입력"
             $error={error}
-            $shake={error} // 흔들림 애니메이션 트리거
+            $shake={error}
           />
           {error && <ErrorText>목소리 이름을 입력해주세요.</ErrorText>}
         </FieldGroup>
       </Content>
-{openModal && (
-  <Dim onClick={() => setOpenModal(false)}>
-    <Modal onClick={(e) => e.stopPropagation()}>
-      <ModalTitle>등록이 완료되지 않았어요</ModalTitle>
-      <ModalDesc>
-        지금 나가면
-        <br/>저장된 내용이 모두 사라져요.
-      </ModalDesc>
 
-      <BtnRow>
-        <ModalBtnGray onClick={() => navigate('/mypage/voice_set/main')}>나가기</ModalBtnGray>
-        <ModalBtnYellow onClick={() => setOpenModal(false)}>이어서 등록</ModalBtnYellow>
-      </BtnRow>
-    </Modal>
-  </Dim>
-)}
+      {openModal && (
+        <Dim onClick={() => setOpenModal(false)}>
+          <Modal onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>등록이 완료되지 않았어요</ModalTitle>
+            <ModalDesc>
+              지금 나가면
+              <br />저장된 내용이 모두 사라져요.
+            </ModalDesc>
+
+            <BtnRow>
+              <ModalBtnGray onClick={() => navigate('/mypage/voice_set/main')}>
+                나가기
+              </ModalBtnGray>
+              <ModalBtnYellow onClick={() => setOpenModal(false)}>
+                이어서 등록
+              </ModalBtnYellow>
+            </BtnRow>
+          </Modal>
+        </Dim>
+      )}
 
       <BottomArea>
         <Button
           bgColor="#342E29"
           color="#FFF"
-          onClick={handleNext} // 검증 로직 추가된 버튼
+          onClick={handleNext}
         >
           <BtnContent>
             <BtnIcon src={RECORD_ICON} alt="" aria-hidden="true" />
@@ -110,8 +139,9 @@ const VoiceSetStep01 = () => {
 
 export default VoiceSetStep01;
 
-//스토리
-// 흔들림 애니메이션 정의
+/* ---------------- Styled Components (그대로 유지) ---------------- */
+
+// 흔들림 애니메이션
 const shake = keyframes`
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-5px); }
@@ -247,22 +277,20 @@ const BtnIcon = styled.img`
 `;
 
 const BtnText = styled.span`
-  color: var(--color-text-interactive-inverse, #FFF);
+  color: #FFF;
   text-align: center;
   font-family: 'NanumSquareRound';
   font-size: 16px;
-  font-style: normal;
   font-weight: 800;
-  line-height: 24px;
 `;
 
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background-color: rgba(0,0,0,0.4);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -283,31 +311,20 @@ const Modal = styled.div`
   align-items: center;
 `;
 
-
 const ModalTitle = styled.h3`
   margin: 6px 0 8px;
   color: #3a372f;
   font-size: 20px;
   font-weight: 800;
-  line-height: 28px;
-  letter-spacing: -0.01em;
 `;
 
 const ModalDesc = styled.p`
-  margin: 0 0 16px;
   color: #7a7a7a;
   font-size: 14px;
-  font-family: NanumSquareRound;
   line-height: 22px;
-  width: 100%;
-  max-width: 272px;
-  margin-left: auto;
-  margin-right: auto;
 `;
 
 const BtnRow = styled.div`
-  margin-top: 8px;
-  margin-bottom: 4px;
   display: flex;
   gap: 12px;
 `;
@@ -335,5 +352,3 @@ const ModalBtnYellow = styled.button`
   font-weight: 800;
   cursor: pointer;
 `;
-
-

@@ -2,17 +2,41 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/axios.js";
 
 const Storystep01 = () => {
   const navigate = useNavigate();
 
-
   const [length, setLength] = useState("0-3분");
   const [age, setAge] = useState("0-3세");
+  const [loading, setLoading] = useState(false);
+
+  const handleNext = async () => {
+    if (loading) return;
+    setLoading(true);
+
+    try {
+      const res = await api.post("/api/story/options/", {
+        runtime: length,
+        age_group: age
+      });
+
+      console.log("동화 옵션 저장 성공:", res.data);
+
+      // 서버에서 next="/story/record/" 줌
+      const nextPath = res.data?.next || "/mystory/ai_story/step02";
+      navigate(nextPath);
+
+    } catch (err) {
+      console.error("동화 옵션 저장 실패:", err);
+      alert("동화 옵션을 저장하는 중 문제가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Screen>
-      {/* 공통 헤더 */}
       <Header
         title="동화 만들기"
         showBack={true}
@@ -49,7 +73,6 @@ const Storystep01 = () => {
           </SelectButton>
         </ButtonRow>
 
-        {/* 아이 연령대 */}
         <Label>
           아이 연령대 <Required>*</Required>
         </Label>
@@ -75,10 +98,9 @@ const Storystep01 = () => {
         </ButtonRow>
       </Content>
 
-      {/* 하단 버튼 */}
       <BottomArea>
-        <NextButton onClick={() => navigate("/mystory/ai_story/step02")}>
-          다음
+        <NextButton onClick={handleNext} disabled={loading}>
+          {loading ? "저장 중..." : "다음"}
         </NextButton>
       </BottomArea>
     </Screen>
@@ -87,7 +109,7 @@ const Storystep01 = () => {
 
 export default Storystep01;
 
-//스타일 컴포넌트
+
 const Screen = styled.div`
   display: flex;
   flex-direction: column;
@@ -133,7 +155,6 @@ const Required = styled.span`
   font-family: NanumSquareRound;
   font-size: 16px;
   font-weight: 800;
-  line-height: 24px;
 `;
 
 const ButtonRow = styled.div`
@@ -153,11 +174,11 @@ const SelectButton = styled.button`
     $active
       ? `
       background: #393939;
-      color: var(--color-text-interactive-inverse, #FFF);
+      color: #FFF;
     `
       : `
       background: #f2f2f2;
-      color: var(--color-text-tertiary, #BBB);
+      color: #BBB;
     `}
 
   font-family: NanumSquareRound;
@@ -179,8 +200,8 @@ const NextButton = styled.button`
   height: 56px;
   border-radius: 999px;
   border: none;
-  background: var(--color-bg-primary, #FFD342);
-  color: var(--color-text-interactive-inverse, #FFF);
+  background: #FFD342;
+  color: #FFF;
   font-family: NanumSquareRound;
   font-size: 16px;
   font-weight: 800;

@@ -3,45 +3,77 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header.jsx';
 import Button from '../../components/Button.jsx';
+import api from "../../api/axios.js";
 
+// child_image_code 매핑 포함
 const CHARACTERS = [
-  { key: 'dog',  src: '/img/onboarding/Avatar.svg' },
-  { key: 'bear', src: '/img/onboarding/Avatar_1.svg' },
-  { key: 'cat',  src: '/img/onboarding/Avatar_3.svg' },
-  { key: 'alien',src: '/img/onboarding/Avatar_4.svg' },
+  { key: 'dog',  src: '/img/onboarding/Avatar.svg',    code: "child1" },
+  { key: 'bear', src: '/img/onboarding/Avatar_1.svg',  code: "child2" },
+  { key: 'cat',  src: '/img/onboarding/Avatar_3.svg',  code: "child3" },
+  { key: 'alien',src: '/img/onboarding/Avatar_4.svg',  code: "child4" },
 ];
 
 const OnboardingStep05 = () => {
   const navigate = useNavigate();
 
-  // 캐릭터 상태
   const [selected, setSelected] = useState(CHARACTERS[0].key);
   const [name, setName] = useState('');
-  const [birthYear, setBirthYear] = useState('');
+  const [birthDate, setBirthDate] = useState(''); // YYYY-MM-DD 
   const [gender, setGender] = useState('');
 
-  // 모달 상태
   const [openSkip, setOpenSkip] = useState(false);
   const [openDone, setOpenDone] = useState(false);
 
   const current = CHARACTERS.find(c => c.key === selected) || CHARACTERS[0];
 
-  const isValid = useMemo(() => {
-    const yearOk = /^\d{4}$/.test(birthYear);
-    return name.trim().length > 0 && yearOk && (gender === 'female' || gender === 'male');
-  }, [name, birthYear, gender]);
+  // 생년월일 정규식 체크
+  const birthValid = /^\d{4}-\d{2}-\d{2}$/.test(birthDate);
 
-  const handleSubmit = (e) => {
+  const isValid = useMemo(() => {
+    return (
+      name.trim().length > 0 &&
+      birthValid &&
+      (gender === 'female' || gender === 'male')
+    );
+  }, [name, birthDate, gender]);
+
+ 
+  const handleSubmit = async (e) => {
     e?.preventDefault?.();
     if (!isValid) return;
-    setOpenDone(true);
+
+    try {
+      const childImageCode = CHARACTERS.find(c => c.key === selected)?.code || "child1";
+
+      const res = await api.post("/api/accounts/child/", {
+        name,
+        birth_date: birthDate,
+        gender: gender === "female" ? "F" : "M",
+        child_image_code: childImageCode
+      });
+
+      console.log("아이 등록 성공:", res.data);
+      setOpenDone(true);
+    } catch (err) {
+      console.error("아이 등록 실패:", err);
+      alert("아이 등록 중 오류가 발생했습니다.");
+    }
   };
 
   const resetForm = () => {
     setName('');
-    setBirthYear('');
+    setBirthDate('');
     setGender('');
     setSelected(CHARACTERS[0].key);
+  };
+
+  const handleBirthInput = (e) => {
+    let v = e.target.value.replace(/\D/g, "").slice(0, 8);
+
+    if (v.length >= 5) v = v.replace(/(\d{4})(\d{2})(\d{0,2})/, "$1-$2-$3");
+    else if (v.length >= 3) v = v.replace(/(\d{4})(\d{0,2})/, "$1-$2");
+
+    setBirthDate(v);
   };
 
   return (
@@ -70,6 +102,7 @@ const OnboardingStep05 = () => {
           ))}
         </SelectorRow>
 
+        {/* 이름 */}
         <FieldGroup>
           <FieldLabel>이름</FieldLabel>
           <Input
@@ -80,21 +113,18 @@ const OnboardingStep05 = () => {
           />
         </FieldGroup>
 
+        {/* 생년월일 YYYY-MM-DD */}
         <FieldGroup>
-          <FieldLabel>출생연도</FieldLabel>
+          <FieldLabel>생년월일</FieldLabel>
           <Input
-            inputMode="numeric"
-            pattern="\d*"
-            maxLength={4}
-            value={birthYear}
-            onChange={e => {
-              const onlyNum = e.target.value.replace(/\D/g, '').slice(0, 4);
-              setBirthYear(onlyNum);
-            }}
-            placeholder="출생연도를 입력해주세요"
+            value={birthDate}
+            onChange={handleBirthInput}
+            placeholder="0000-00-00"
+            maxLength={10}
           />
         </FieldGroup>
 
+        {/* 성별 */}
         <FieldGroup>
           <FieldLabel>성별</FieldLabel>
           <GenderRow>
@@ -123,8 +153,8 @@ const OnboardingStep05 = () => {
         <Button
           width="343px"
           height="56px"
-          bgColor={isValid ? '#FFD342' : '#EDEDED'}
-          color={isValid ? '#342E29' : '#B9B9B9'}
+          $bgColor={isValid ? '#FFD342' : '#EDEDED'}
+          $color={isValid ? '#ffff' : '#B9B9B9'}
           disabled={!isValid}
           onClick={handleSubmit}
         >
@@ -150,7 +180,7 @@ const OnboardingStep05 = () => {
         </Dim>
       )}
 
-      {/* 등록 완료 모달 */}
+      {/* 완료 모달 */}
       {openDone && (
         <Dim onClick={() => setOpenDone(false)}>
           <Modal role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -173,7 +203,7 @@ const OnboardingStep05 = () => {
 
 export default OnboardingStep05;
 
-//스타일 컴포넌트
+
 const Screen = styled.div`
   display: flex;
   flex-direction: column;
@@ -214,7 +244,8 @@ const SelectButton = styled.button`
   align-items: center;
   justify-content: center;
   border: ${({ $active }) => ($active ? '2px solid #FFD342' : '2px solid transparent')};
-  box-shadow: ${({ $active }) => ($active ? '0 0 0 2px rgba(255,211,66,0.25) inset' : 'none')};
+  box-shadow: ${({ $active }) =>
+    $active ? '0 0 0 2px rgba(255,211,66,0.25) inset' : 'none'};
   transition: border-color 120ms ease, transform 120ms ease;
   &:active { transform: scale(0.98); }
 `;
@@ -280,7 +311,8 @@ const RadioIcon = styled.span`
   border-radius: 50%;
   border: 2px solid ${({ $active }) => ($active ? '#FFD342' : '#D8D8D8')};
   background: #fff;
-  box-shadow: ${({ $active }) => ($active ? '0 0 0 2px rgba(255,211,66,0.2) inset' : 'none')};
+  box-shadow: ${({ $active }) =>
+    $active ? '0 0 0 2px rgba(255,211,66,0.2) inset' : 'none'};
   &::after {
     content: '';
     position: absolute;
@@ -301,14 +333,13 @@ const BottomArea = styled.div`
   justify-content: center;
 `;
 
-//모달창
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background-color: rgba(0,0,0,0.4);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -321,7 +352,6 @@ const Modal = styled.div`
   padding: 24px 24px 16px 24px;
   background: #fff;
   border-radius: 16px;
-
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -329,14 +359,12 @@ const Modal = styled.div`
   align-items: center;
 `;
 
-
 const ModalTitle = styled.h3`
   margin: 6px 0 8px;
   color: #3a372f;
   font-size: 20px;
   font-weight: 800;
   line-height: 28px;
-  letter-spacing: -0.01em;
   text-align: center;
 `;
 
@@ -344,13 +372,9 @@ const ModalDesc = styled.p`
   margin: 0 0 16px;
   color: #7a7a7a;
   font-size: 14px;
-  font-family: NanumSquareRound;
   line-height: 22px;
-  width: 100%;
   max-width: 272px;
   text-align: center;
-  margin-left: auto;
-  margin-right: auto;
 `;
 
 const BtnRow = styled.div`
@@ -384,3 +408,5 @@ const ModalBtnYellow = styled.button`
   cursor: pointer;
 `;
 
+const CancelBtn = styled(ModalBtnGray)``;
+const DeleteBtn = styled(ModalBtnYellow)``;

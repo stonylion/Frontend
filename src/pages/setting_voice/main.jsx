@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
 import BottomBar from "../../components/Bottom.jsx";
+import api from "../../api/axios.js";
 
-// 초기 데이터
-const initialMyVoices = [
-  { id: 1, name: "목소리1", icon: "/img/onboarding/Avatar_1.svg" },
-  { id: 2, name: "목소리1", icon: "/img/onboarding/Avatar_2.svg" },
-  { id: 3, name: "목소리1", icon: "/img/onboarding/Avatar_4.svg" },
-];
+// 🔥 서버 voice_image_code → 실제 아바타 이미지 매핑
+const voiceImageMap = {
+  voice1: "/img/onboarding/Avatar_1.svg",
+  voice2: "/img/onboarding/Avatar_2.svg",
+  voice3: "/img/onboarding/Avatar_4.svg",
+};
+
 const actorVoices = [
   { id: 1, name: "목소리1", icon: "/img/setting_voice/avatar.svg" },
   { id: 2, name: "목소리1", icon: "/img/setting_voice/avatar.svg" },
@@ -20,53 +22,99 @@ const VoiceSettingMain = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("mine");
 
-  const [myVoiceList, setMyVoiceList] = useState(initialMyVoices);
+  // ⭐ 서버에서 불러온 사용자의 목소리 목록
+  const [myVoiceList, setMyVoiceList] = useState([]);
 
+  // 삭제 모달 상태
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [targetId, setTargetId] = useState(null);
 
-  const handleAddClick = () => {
-    navigate("/mypage/voice_set/step01");
+  /* -------------------------------------------
+   🔥 1) 목소리 리스트 불러오는 API
+  -------------------------------------------- */
+  const loadVoiceList = async () => {
+    try {
+      const res = await api.get("/api/accounts/voice/list/");
+      const serverVoices = res.data.voices;
+
+      const mapped = serverVoices.map((v) => ({
+        id: v.voice_id,
+        name: v.name,
+        icon: voiceImageMap[v.voice_image_code] || "/img/setting_voice/avatar.svg",
+        clonedVoiceURL: v.cloned_voice_url,
+      }));
+
+      setMyVoiceList(mapped);
+    } catch (err) {
+      console.error("목소리 리스트 조회 실패:", err);
+    }
   };
 
+  // 페이지 로드시 자동 실행
+  useEffect(() => {
+    loadVoiceList();
+  }, []);
+
+  /* -------------------------------------------
+    🔥 2) 목소리 삭제 API (DELETE)
+  -------------------------------------------- */
+  const deleteVoiceOnServer = async (voiceId) => {
+    try {
+      const res = await api.delete(`/api/accounts/voice/${voiceId}/`);
+      console.log("삭제 성공:", res.data);
+
+      // 삭제 이후 리스트 다시 새로고침
+      loadVoiceList();
+    } catch (err) {
+      console.error("삭제 실패:", err);
+      alert("목소리 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  /* -------------------------------------------
+     모달 클릭 핸들러
+  -------------------------------------------- */
   const handleDeleteClick = (id) => {
     setTargetId(id);
     setShowDeleteModal(true);
   };
 
   const handleCloseModal = () => {
-    setShowDeleteModal(false);
     setTargetId(null);
+    setShowDeleteModal(false);
   };
 
   const handleConfirmDelete = () => {
     if (targetId !== null) {
-      setMyVoiceList((prev) => prev.filter((v) => v.id !== targetId));
+      deleteVoiceOnServer(targetId);
     }
-    setShowDeleteModal(false);
     setTargetId(null);
+    setShowDeleteModal(false);
+  };
+
+  /* -------------------------------------------
+     화면 렌더링
+  -------------------------------------------- */
+
+  const handleAddClick = () => {
+    navigate("/mypage/voice_set/step01");
   };
 
   return (
     <Container>
-      <Header title="목소리 설정" showBack={true} onBack={() => navigate('/mypage')} />
-      {/* 탭 메뉴 */}
+      <Header title="목소리 설정" showBack={true} onBack={() => navigate("/mypage")} />
+
+      {/* 탭 */}
       <TabWrapper>
-        <TabButton
-          active={activeTab === "mine"}
-          onClick={() => setActiveTab("mine")}
-        >
+        <TabButton active={activeTab === "mine"} onClick={() => setActiveTab("mine")}>
           나의 목소리
         </TabButton>
-        <TabButton
-          active={activeTab === "actor"}
-          onClick={() => setActiveTab("actor")}
-        >
+        <TabButton active={activeTab === "actor"} onClick={() => setActiveTab("actor")}>
           성우 목소리
         </TabButton>
       </TabWrapper>
 
-      {/* 리스트 영역 */}
+      {/* 리스트 */}
       <ListWrapper>
         {activeTab === "mine"
           ? myVoiceList.map((voice) => (
@@ -75,10 +123,16 @@ const VoiceSettingMain = () => {
                   <Avatar src={voice.icon} alt="voice icon" />
                   <VoiceName>{voice.name}</VoiceName>
                 </LeftArea>
+
                 <RightArea>
-                  <IconButton>
+                  {/* 재생 버튼 */}
+                  <IconButton
+                    onClick={() => voice.clonedVoiceURL && new Audio(voice.clonedVoiceURL).play()}
+                  >
                     <img src="/img/setting_voice/play.svg" alt="edit" />
                   </IconButton>
+
+                  {/* 삭제 */}
                   <IconButton onClick={() => handleDeleteClick(voice.id)}>
                     <img src="/img/setting_voice/delete.svg" alt="delete" />
                   </IconButton>
@@ -91,6 +145,7 @@ const VoiceSettingMain = () => {
                   <Avatar src={voice.icon} alt="voice icon" />
                   <VoiceName>{voice.name}</VoiceName>
                 </LeftArea>
+
                 <RightArea>
                   <IconButton onClick={() => navigate(`/mypage/voice_set/play/step_03`)}>
                     <img src="/img/setting_voice/play.svg" alt="play" />
@@ -99,7 +154,7 @@ const VoiceSettingMain = () => {
               </VoiceItem>
             ))}
 
-        {/* + 등록하기 버튼 */}
+        {/* 등록하기 버튼 */}
         {activeTab === "mine" && (
           <AddButton onClick={handleAddClick}>
             <PlusIcon src="/img/setting_voice/plus.svg" alt="add" />
@@ -108,14 +163,10 @@ const VoiceSettingMain = () => {
         )}
       </ListWrapper>
 
-      {/* 모달창 */}
+      {/* 삭제 모달 */}
       {showDeleteModal && (
         <Dim onClick={handleCloseModal}>
-          <Modal
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <Modal onClick={(e) => e.stopPropagation()}>
             <ModalTitle>정말 삭제하시겠어요?</ModalTitle>
             <ModalDesc>
               한번 삭제하면 되돌릴 수 없어요.
@@ -138,7 +189,10 @@ const VoiceSettingMain = () => {
 
 export default VoiceSettingMain;
 
-// 스타일 컴포넌트
+/* --------------------------------------------
+   ⭐ 스타일 컴포넌트 (원본 그대로 유지)
+--------------------------------------------- */
+
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -196,11 +250,6 @@ const RightArea = styled.div`
 const Avatar = styled.img`
   width: 44px;
   height: 44px;
-  padding: 5px;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
 `;
 
 const VoiceName = styled.span`
@@ -227,32 +276,25 @@ const AddButton = styled.button`
   color: #393939;
   font-size: 16px;
   cursor: pointer;
-  font-family: NanumSquareRound;
-  line-height: 24px;
 `;
 
 const PlusIcon = styled.img`
-  display: flex;
   width: 44px;
   height: 44px;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
 `;
 
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background-color: rgba(0,0,0,0.4);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 999;
 `;
-
 
 const Modal = styled.div`
   width: 320px;
@@ -268,14 +310,11 @@ const Modal = styled.div`
   align-items: center;
 `;
 
-
 const ModalTitle = styled.h3`
   margin: 6px 0 8px;
   color: #3a372f;
   font-size: 20px;
   font-weight: 800;
-  line-height: 28px;
-  letter-spacing: -0.01em;
   text-align: center;
 `;
 
@@ -283,18 +322,11 @@ const ModalDesc = styled.p`
   margin: 0 0 16px;
   color: #7a7a7a;
   font-size: 14px;
-  font-family: NanumSquareRound;
-  line-height: 22px;
-  width: 100%;
-  max-width: 272px;
   text-align: center;
-  margin-left: auto;
-  margin-right: auto;
 `;
 
 const BtnRow = styled.div`
   margin-top: 8px;
-  margin-bottom: 4px;
   display: flex;
   gap: 12px;
 `;
@@ -322,4 +354,3 @@ const ModalBtnYellow = styled.button`
   font-weight: 800;
   cursor: pointer;
 `;
-

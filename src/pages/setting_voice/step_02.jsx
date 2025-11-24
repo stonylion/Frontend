@@ -1,37 +1,140 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
-import Header from '../../components/Header.jsx';
-import Button from '../../components/Button.jsx';
+import React, { useState, useRef } from "react";
+import styled from "styled-components";
+import { useNavigate, useLocation } from "react-router-dom";
+import Header from "../../components/Header.jsx";
+import Button from "../../components/Button.jsx";
+import api from "../../api/axios.js";
 
-const ICON_RECORDING = '/img/onboarding/recording.svg';
-const ICON_RECORD11  = '/img/onboarding/Record11.svg';
-const ICON_PAUSE     = '/img/onboarding/record_pause.svg';
-const ICON_RESTART   = '/img/onboarding/restart.svg';
-const ICON_DONE      = '/img/onboarding/done.svg';
+const ICON_RECORDING = "/img/onboarding/recording.svg";
+const ICON_RECORD11 = "/img/onboarding/Record11.svg";
+const ICON_PAUSE = "/img/onboarding/record_pause.svg";
+const ICON_RESTART = "/img/onboarding/restart.svg";
+const ICON_DONE = "/img/onboarding/done.svg";
 
 const VoiceSetStep02 = () => {
   const navigate = useNavigate();
-  const [openModal, setOpenModal] = useState(false);
-  const [status, setStatus] = useState('idle');
+  const location = useLocation();
 
-  const handleMicClick = () => {
-    if (status === 'idle') setStatus('recording');
-    else if (status === 'recording') setStatus('paused');
-    else setStatus('idle');
+  // Step01에서 전달받은 voiceId
+  const { voiceId } = location.state || {};
+
+  const [openModal, setOpenModal] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle → recording → paused
+  const [audioURL, setAudioURL] = useState(null);
+
+  // recorder
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  /* 녹음 시작 */
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      chunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+        setAudioURL(url);
+      };
+
+      mediaRecorder.start();
+    } catch (err) {
+      console.error("마이크 접근 오류:", err);
+      alert("마이크 권한을 허용해주세요.");
+    }
   };
 
-  const statusIcon = status === 'idle' ? ICON_RECORDING
-                    : status === 'recording' ? ICON_RECORD11
-                    : ICON_PAUSE;
+  /* 녹음 중단 */
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
+  };
 
+  /* 녹음 버튼 클릭 */
+  const handleMicClick = () => {
+    if (status === "idle") {
+      setStatus("recording");
+      startRecording();
+    } else if (status === "recording") {
+      setStatus("paused");
+      stopRecording();
+    } else {
+      // paused 상태에서 다시 idle로
+      setStatus("idle");
+      setAudioURL(null);
+      chunksRef.current = [];
+    }
+  };
+
+  /* 다시 녹음 */
+  const restartRecording = () => {
+    setStatus("recording");
+    setAudioURL(null);
+    chunksRef.current = [];
+    startRecording();
+  };
+
+  /* 서버 업로드 */
+  const uploadToServer = async () => {
+    if (!audioURL) {
+      alert("녹음 파일이 없습니다!");
+      return;
+    }
+
+    if (!voiceId) {
+      alert("voiceId 정보가 없습니다. 처음 단계부터 다시 진행해주세요.");
+      return;
+    }
+
+    try {
+      const blob = await fetch(audioURL).then((res) => res.blob());
+
+      const formData = new FormData();
+      formData.append("voice_id", voiceId);
+      formData.append("reference_audio", blob, "myvoice.wav");
+
+      // multipart 예외 처리 (axios 인터셉터 우회)
+      const res = await api.post("/api/accounts/voice/clone/", formData, {
+        transformRequest: (data) => data,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      console.log("업로드 성공:", res.data);
+
+      navigate("/onboarding/step_03", {
+        state: {
+          voiceId: res.data.voice_id,
+          clonedVoiceURL: res.data.cloned_voice_url,
+          referenceAudioURL: res.data.reference_audio_url,
+        },
+      });
+    } catch (err) {
+      console.error("업로드 실패:", err);
+      console.log("서버 응답:", err.response?.data);
+      alert("녹음 업로드 중 오류가 발생했습니다.");
+    }
+  };
+
+  /* 안내 텍스트 */
   const renderArcTexts = () => {
-    if (status === 'recording') {
+    if (status === "recording")
       return <ArcText>10초 내에 가이드 문장을 읽어주세요.</ArcText>;
-    }
-    if (status === 'paused') {
+
+    if (status === "paused")
       return <ArcText>내가 방금 녹음한 목소리를 들어보세요.</ArcText>;
-    }
+
     return (
       <>
         <ArcText>조용한 곳에서 또박또박 말씀해주세요.</ArcText>
@@ -40,6 +143,13 @@ const VoiceSetStep02 = () => {
     );
   };
 
+  const statusIcon =
+    status === "idle"
+      ? ICON_RECORDING
+      : status === "recording"
+      ? ICON_RECORD11
+      : ICON_PAUSE;
+
   return (
     <Screen>
       <Header
@@ -47,12 +157,11 @@ const VoiceSetStep02 = () => {
         showBack={false}
         action={{
           icon: "/icons/new_right_part.svg",
-          handler: () => setOpenModal(true)
+          handler: () => setOpenModal(true),
         }}
       />
 
       <Content>
-        {/* 가이드 문장 묶음 */}
         <GuideWrap>
           <Badge>가이드 문장</Badge>
           <Quote>
@@ -66,28 +175,26 @@ const VoiceSetStep02 = () => {
 
         <Spacer />
 
-        {/* 하단 반원 영역 */}
         <ArcArea>
           <Arc />
           <ArcTexts>{renderArcTexts()}</ArcTexts>
 
-          {/* 상태별 컨트롤 */}
-          {status !== 'paused' ? (
-            <MicButton type="button" onClick={handleMicClick} aria-label="녹음 컨트롤">
-              <img src={statusIcon} alt="" width="64" height="64" />
+          {status !== "paused" ? (
+            <MicButton onClick={handleMicClick}>
+              <img src={statusIcon} width="64" height="64" />
             </MicButton>
           ) : (
             <ControlRow>
-              <IconBtn type="button" aria-label="다시 녹음" onClick={() => setStatus('recording')}>
-                <img src={ICON_RESTART} alt="" width="64" height="64" />
+              <IconBtn onClick={restartRecording}>
+                <img src={ICON_RESTART} width="64" height="64" />
               </IconBtn>
 
-              <IconBtn type="button" aria-label="일시정지" onClick={handleMicClick}>
-                <img src={ICON_PAUSE} alt="" width="64" height="64" />
+              <IconBtn onClick={() => audioURL && new Audio(audioURL).play()}>
+                <img src={ICON_PAUSE} width="64" height="64" />
               </IconBtn>
 
-              <IconBtn type="button" aria-label="완료" onClick={() => navigate('/mypage/voice_set/step03')}>
-                <img src={ICON_DONE} alt="" width="64" height="64" />
+              <IconBtn onClick={uploadToServer}>
+                <img src={ICON_DONE} width="64" height="64" />
               </IconBtn>
             </ControlRow>
           )}
@@ -105,7 +212,7 @@ const VoiceSetStep02 = () => {
             </ModalDesc>
 
             <BtnRow>
-              <ModalBtnGray onClick={() => { navigate('/mypage/voice_set/main'); }}>
+              <ModalBtnGray onClick={() => navigate("/onboarding/step_04")}>
                 나가기
               </ModalBtnGray>
               <ModalBtnYellow onClick={() => setOpenModal(false)}>
@@ -121,6 +228,7 @@ const VoiceSetStep02 = () => {
 
 export default VoiceSetStep02;
 
+/* ---------------- Styled Components ---------------- */
 
 const Screen = styled.div`
   display: flex;
@@ -137,7 +245,6 @@ const Content = styled.section`
   padding: 16px 20px 0;
 `;
 
-/* 가이드 문장 */
 const GuideWrap = styled.div`
   display: flex;
   margin-top: 90px;
@@ -157,7 +264,6 @@ const Badge = styled.span`
   background: #ffd342;
   color: #fff;
   font-size: 12px;
-  font-family: NanumSquareRound;
   font-weight: 800;
 `;
 
@@ -166,10 +272,8 @@ const Quote = styled.p`
   text-align: center;
   color: #3a372f;
   font-size: 20px;
-  font-family: NanumSquareRound;
   font-weight: 700;
   line-height: 28px;
-  letter-spacing: -0.02em;
 `;
 
 const Spacer = styled.div`
@@ -188,7 +292,7 @@ const ArcArea = styled.div`
 const Arc = styled.div`
   position: absolute;
   inset: 0;
-  background: #FFF8E3;
+  background: #fff8e3;
   border-top-left-radius: 90% 50%;
   border-top-right-radius: 90% 50%;
 `;
@@ -204,11 +308,8 @@ const ArcTexts = styled.div`
 `;
 
 const ArcText = styled.div`
-  color: #736A64;
-  text-align: center;
-  font-family: 'NanumSquareRound';
+  color: #736a64;
   font-size: 14px;
-  font-weight: 400;
   line-height: 22px;
 `;
 
@@ -217,15 +318,9 @@ const MicButton = styled.button`
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  width: 64px;
-  height: 64px;
-  padding: 0;
-  border: none;
   background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+  border: none;
+  padding: 0;
 `;
 
 const ControlRow = styled.div`
@@ -234,34 +329,28 @@ const ControlRow = styled.div`
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 60px;
 `;
 
 const IconBtn = styled.button`
-  width: 64px;
-  height: 64px;
-  padding: 0;
-  border: none;
   background: transparent;
+  border: none;
+  padding: 0;
   cursor: pointer;
 `;
 
-//모달창
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background-color: rgba(0, 0, 0, 0.4);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 999;
 `;
-
 
 const Modal = styled.div`
   width: 320px;
@@ -269,7 +358,6 @@ const Modal = styled.div`
   padding: 24px 24px 16px 24px;
   background: #fff;
   border-radius: 16px;
-
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -277,30 +365,21 @@ const Modal = styled.div`
   align-items: center;
 `;
 
-
 const ModalTitle = styled.h3`
   margin: 6px 0 8px;
   color: #3a372f;
   font-size: 20px;
   font-weight: 800;
-  line-height: 28px;
 `;
 
 const ModalDesc = styled.p`
-  margin: 0 0 16px;
   color: #7a7a7a;
   font-size: 14px;
-  font-family: NanumSquareRound;
   line-height: 22px;
-  width: 100%;
-  max-width: 272px;
-  margin-left: auto;
-  margin-right: auto;
+  text-align: center; /* center 고정 */
 `;
 
 const BtnRow = styled.div`
-  margin-top: 8px;
-  margin-bottom: 4px;
   display: flex;
   gap: 12px;
 `;
@@ -314,7 +393,6 @@ const ModalBtnGray = styled.button`
   color: #7a7a7a;
   font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
 `;
 
 const ModalBtnYellow = styled.button`
@@ -326,6 +404,4 @@ const ModalBtnYellow = styled.button`
   color: #fff;
   font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
 `;
-
