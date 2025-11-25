@@ -96,7 +96,7 @@ function MypageKid() {
                 console.log("아이 정보 조회:", response.data);
 
                 setNickname(response.data.name || '');
-                setBirth(response.data.birth_date || '');
+                setBirth(response.data.birth_date?.replace(/-/g, '.') || '');
                 setSelectedGender(response.data.gender === 'F' ? 'female' : 'male');
                 setSelectedAvatar(avatarMap[response.data.child_image_code] || avatarMap.child1);
             } catch (e) {
@@ -151,7 +151,7 @@ function MypageKid() {
                     type='text'
                     value={birth || ''}
                     onChange={(e) => setBirth(e.target.value)}
-                    placeholder='출생연도 입력'
+                    placeholder='출생연도를 입력해주세요. (ex: yyyy.mm.dd)'
                     $filled={birth !== ''}
                 />
             </InputContainer>
@@ -211,7 +211,7 @@ function MypageKid() {
                     <ModalHeader>수정이 완료되지 않았어요</ModalHeader>
                     <ModalText>지금 나가면<br />수정한 내용이 반영되지 않아요.</ModalText>
                     <ModalBtnContainer>
-                        <CancelBtn onClick={() => navigate('/mypage-kid-detail')}>나가기</CancelBtn>
+                        <CancelBtn onClick={() => navigate(`/mypage-kid-detail/${child_id}`)}>나가기</CancelBtn>
                         <ConfirmBtn onClick={() => setShowBackModal(false)}>수정하기</ConfirmBtn>
                     </ModalBtnContainer>
                 </ModalBox>
