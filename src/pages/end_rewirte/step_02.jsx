@@ -56,9 +56,8 @@ const Endwritestep02 = () => {
 
   const stopRecording = async (sendToServer = true) => {
     const now = Date.now();
-
     if (now - recordStartTime.current < 500) {
-      console.log("⏳ 최소 녹음시간 미달 → stopRecording 무시");
+      console.log("⏳ 최소 녹음시간 미달");
       return;
     }
 
@@ -91,8 +90,9 @@ const Endwritestep02 = () => {
 
     const form = new FormData();
     form.append("audio", file);
-    form.append("chat_id", chatId ?? "");
     form.append("voice", "alloy");
+
+    if (chatId) form.append("chat_id", chatId);
 
     try {
       const res = await api.post(
@@ -106,17 +106,13 @@ const Endwritestep02 = () => {
       setChatId(res.data.chat_id);
       setQuestion(res.data.text);
 
-      // 🔥 결말확장 유도 문구이면 → 모달 열기
       const isEndingPrompt =
         res.data.text?.includes("확장") ||
-        res.data.text?.includes("안녕") ||
-        res.data.text?.includes("확장해도") ||
+        res.data.text?.includes("결말") ||
         res.data.text?.includes("완성해도") ||
         res.data.text?.includes("마무리");
 
-      if (isEndingPrompt) {
-        setOpenEndingModal(true);
-      }
+      if (isEndingPrompt) setOpenEndingModal(true);
     } catch (err) {
       console.error("❌ 질문 생성 실패:", err);
       setQuestion("질문을 불러오지 못했어. 다시 말해줄래?");
@@ -144,7 +140,6 @@ const Endwritestep02 = () => {
 
   const handleContinueVoice = () => {
     setOpenEndingModal(false);
-    // 그냥 다음 질문을 위해 사용자가 다시 mic 버튼을 눌러 말하게 유도
   };
 
   const handleMicClick = () => {
@@ -193,7 +188,6 @@ const Endwritestep02 = () => {
         </BottomIcons>
       </ArcArea>
 
-      {/* 결말 확장 모달 */}
       {openEndingModal && (
         <EndingDim onClick={() => setOpenEndingModal(false)}>
           <EndingModal onClick={(e) => e.stopPropagation()}>
@@ -218,6 +212,7 @@ const Endwritestep02 = () => {
 };
 
 export default Endwritestep02;
+
 
 
 
