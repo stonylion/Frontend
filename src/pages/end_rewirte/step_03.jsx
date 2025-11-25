@@ -14,114 +14,148 @@ const Endwritestep03 = () => {
   const location = useLocation();
 
   const storyId = location.state?.storyId;
-  const draftText = location.state?.draftText || "";
+  const chatIdFromVoice = location.state?.chatId || null;
+  const questionFromVoice = location.state?.question || "";
 
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
-  const [chatId, setChatId] = useState(null); 
-  const [canFinalize, setCanFinalize] = useState(false); 
+  const [chatId, setChatId] = useState(chatIdFromVoice);
+  const [canFinalize, setCanFinalize] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef(null);
 
+  // storyId 없으면 홈으로
+  useEffect(() => {
+    if (!storyId) navigate("/rewrite_end/");
+  }, [storyId, navigate]);
+
+  // 초기 bot 질문
+  useEffect(() => {
+    setMessages([
+      {
+        sender: "bot",
+        text: questionFromVoice || "질문을 불러오고 있어요…",
+        can_finalize: false,
+      },
+    ]);
+  }, [questionFromVoice]);
+
+  // 항상 스크롤 아래로
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    console.log("🔥 step03 도착");
-    console.log("🟡 storyId =", storyId);
-    console.log("🟡 draftText =", draftText);
-
-    if (!storyId) navigate("/rewrite_end/");
-  }, [storyId]);
-
-  useEffect(() => {
-    const fetchOpening = async () => {
-      try {
-        const res = await api.post(`/api/AI/stories/${storyId}/extend-chat/stream/`, {
-          chat_id: null,
-          user_message: "",
-          input_modality: "text",
-        });
-
-        console.log("📩 Opening 응답:", res.data);
-
-        setChatId(res.data.chat_id);
-
-        setCanFinalize(res.data.can_finalize || false);
-
-        setMessages([{ sender: "bot", text: res.data.text }]);
-
-      } catch (err) {
-        console.error("⚠️ Opening 실패:", err);
-        setMessages([{ sender: "bot", text: "대화를 불러오지 못했어요…" }]);
-      }
-    };
-
-    if (storyId) fetchOpening();
-  }, [storyId]);
-
   const handleSend = async (e) => {
     e.preventDefault();
-
     if (!inputValue.trim()) return;
-    if (!chatId) return;
 
-    const text = inputValue;
+    const userMsg = inputValue.trim();
     setInputValue("");
-    setMessages((prev) => [...prev, { sender: "user", text }]);
+
+    // user 메시지 push
+    setMessages((prev) => [...prev, { sender: "user", text: userMsg }]);
 
     try {
-      const res = await api.post(`/api/AI/stories/${storyId}/extend-chat/stream/`, {
-        chat_id: chatId,
-        user_message: text,
-        input_modality: "text",
-      });
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/stream/`,
+        {
+          chat_id: chatId || chatIdFromVoice || "",
+          user_message: userMsg,
+          input_modality: "text",
+        }
+      );
 
-      console.log("📩 Chat API 응답:", res.data);
-
-      const { text: botReply, can_finalize: can, chat_id: newChatId, reason } = res.data;
+      const { text: botReply, chat_id: newChatId, can_finalize } = res.data;
 
       setChatId(newChatId);
 
-      if (reason === "first_opening") {
-        setCanFinalize(false);
-      } else {
-        setCanFinalize(can || false);
-      }
+      // 결말 확장 문구 자동 감지
+      const isEndingPrompt =
+        botReply?.includes("결말") ||
+        botReply?.includes("엔딩") ||
+        botReply?.includes("확장해도") ||
+        botReply?.includes("완성해도") ||
+        botReply?.includes("마무리") ||
+        botReply?.includes("엔딩으로");
 
-      if (
-        botReply.includes("결말을 확장해도 될까") ||
-        botReply.includes("결말을 확장할까") ||
-        botReply.includes("확장해볼까") ||
-        can
-      ) {
-        setCanFinalize(true);
-      }
+      const finalFlag = can_finalize || isEndingPrompt;
+      setCanFinalize(finalFlag);
 
-      setMessages((prev) => [...prev, { sender: "bot", text: botReply }]);
-
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: botReply,
+          can_finalize: finalFlag,
+        },
+      ]);
     } catch (err) {
-      console.error("⚠️ 채팅 실패:", err);
-      setMessages((prev) => [...prev, { sender: "bot", text: "오류가 발생했어요." }]);
+      console.error("❌ 채팅 실패:", err);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: "오류가 발생했어요.", can_finalize: false },
+      ]);
+    }
+  };
+
+
+  const handleContinueChat = async () => {
+    const effectiveChatId = chatId || chatIdFromVoice;
+    if (!effectiveChatId) return;
+
+    try {
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/stream/`,
+        {
+          chat_id: effectiveChatId,
+          action: "continue",
+        }
+      );
+
+      const { text: botReply, chat_id: newChatId, can_finalize } = res.data;
+
+      setChatId(newChatId);
+
+      // 결말 유도 문구 감지
+      const isEndingPrompt =
+        botReply?.includes("결말") ||
+        botReply?.includes("엔딩") ||
+        botReply?.includes("확장해도") ||
+        botReply?.includes("완성해도") ||
+        botReply?.includes("마무리") ||
+        botReply?.includes("엔딩으로");
+
+      const finalFlag = can_finalize || isEndingPrompt;
+      setCanFinalize(finalFlag);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: botReply,
+          can_finalize: finalFlag,
+        },
+      ]);
+    } catch (err) {
+      console.error("❌ 더 대화하기 실패:", err);
     }
   };
 
   const handleExpandEnding = async () => {
-    if (!chatId) return;
+    const effectiveChatId = chatId || chatIdFromVoice;
+    if (!effectiveChatId) return;
+
     setLoading(true);
 
     try {
       const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
-        chat_id: chatId,
+        chat_id: effectiveChatId,
       });
-
-      console.log("😊 결말 확장 성공:", res.data);
 
       navigate("/rewrite_end/step04", {
         state: {
@@ -130,7 +164,7 @@ const Endwritestep03 = () => {
         },
       });
     } catch (err) {
-      console.error("⚠️ 결말 확장 실패:", err);
+      console.error("❌ 결말 확장 실패:", err);
     } finally {
       setLoading(false);
     }
@@ -144,6 +178,7 @@ const Endwritestep03 = () => {
         <img src={CLOSE_ICON} alt="닫기" />
       </CloseBtn>
 
+      {/* 종료 모달 */}
       {open && (
         <Dim onClick={() => setOpen(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
@@ -155,13 +190,19 @@ const Endwritestep03 = () => {
             </ModalDesc>
 
             <BtnRow>
-              <ModalBtnGray onClick={() => navigate("/rewrite_end/")}>나가기</ModalBtnGray>
-              <ModalBtnYellow onClick={() => setOpen(false)}>계속 대화하기</ModalBtnYellow>
+              <ModalBtnGray onClick={() => navigate("/rewrite_end/")}>
+                나가기
+              </ModalBtnGray>
+
+              <ModalBtnYellow onClick={() => setOpen(false)}>
+                계속 대화하기
+              </ModalBtnYellow>
             </BtnRow>
           </Modal>
         </Dim>
       )}
 
+      {/* 로딩 */}
       {loading && (
         <LoadingDim>
           <LoadingBox>
@@ -178,34 +219,39 @@ const Endwritestep03 = () => {
         </LoadingDim>
       )}
 
+      {/* 채팅 UI */}
       <ChatContainer>
-        {messages.map((msg, i) => (
-          <MessageRow key={i} $isUser={msg.sender === "user"}>
-            {msg.sender === "bot" && <ProfileIcon src={PROFILE} />}
-            <MessageBubble $isUser={msg.sender === "user"}>{msg.text}</MessageBubble>
-          </MessageRow>
-        ))}
+        {messages.map((msg, idx) => {
+          const isLast = idx === messages.length - 1;
+          const isBot = msg.sender === "bot";
 
-        {canFinalize && (
-          <ButtonWrapper>
-            <EndButton onClick={handleExpandEnding}>결말 확장하기</EndButton>
+          return (
+            <div key={idx}>
+              <MessageRow $isUser={msg.sender === "user"}>
+                {isBot && <ProfileIcon src={PROFILE} alt="bot" />}
+                <MessageBubble $isUser={msg.sender === "user"}>
+                  {msg.text}
+                </MessageBubble>
+              </MessageRow>
 
-            <EndButton
-              onClick={() =>
-                setMessages((prev) => [
-                  ...prev,
-                  { sender: "bot", text: "좋아! 조금 더 이야기해보자." },
-                ])
-              }
-            >
-              더 대화하기
-            </EndButton>
-          </ButtonWrapper>
-        )}
+              {isBot && isLast && msg.can_finalize && (
+                <ButtonWrapper>
+                  <EndButton onClick={handleExpandEnding}>
+                    결말 확장하기
+                  </EndButton>
+                  <EndButton onClick={handleContinueChat}>
+                    더 대화하기
+                  </EndButton>
+                </ButtonWrapper>
+              )}
+            </div>
+          );
+        })}
 
         <div ref={chatEndRef} />
       </ChatContainer>
 
+      {/* 입력창 */}
       <InputBar onSubmit={handleSend}>
         <Input
           placeholder="메시지를 입력해주세요"
@@ -222,8 +268,6 @@ const Endwritestep03 = () => {
 };
 
 export default Endwritestep03;
-
-
 
 const LoadingDim = styled.div`
   position: fixed;
@@ -315,7 +359,6 @@ const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 14px;
-
   &::-webkit-scrollbar {
     display: none;
   }
@@ -324,7 +367,6 @@ const ChatContainer = styled.div`
 const MessageRow = styled.div`
   display: flex;
   gap: 8px;
-
   ${({ $isUser }) =>
     $isUser &&
     css`
@@ -350,7 +392,6 @@ const MessageBubble = styled.div`
   line-height: 22px;
   white-space: pre-wrap;
   animation: ${appear} 0.25s ease-out both;
-
   ${({ $isUser }) =>
     $isUser
       ? css`
@@ -381,7 +422,6 @@ const Input = styled.input`
   border: none;
   padding: 0 16px;
   background: #f5f5f5;
-
   &:focus {
     background: #eeeeee;
   }
@@ -392,7 +432,6 @@ const RecordBtn = styled.button`
   border: none;
   margin-left: 12px;
   cursor: pointer;
-
   img {
     width: 40px;
     height: 40px;
@@ -402,7 +441,7 @@ const RecordBtn = styled.button`
 const ButtonWrapper = styled.div`
   display: flex;
   gap: 8px;
-  margin-top: 8px;
+  margin: 8px 0 0 40px;
 `;
 
 const EndButton = styled.button`
@@ -411,10 +450,10 @@ const EndButton = styled.button`
   padding: 0 16px;
   justify-content: center;
   align-items: center;
-  gap: 8px;
   border-radius: 999px;
   border: 1px solid #f1f1f1;
   background: #ffffff;
+  font-size: 13px;
   cursor: pointer;
 `;
 
@@ -424,7 +463,7 @@ const Dim = styled.div`
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);
+  background-color: rgba(0, 0, 0, 0.4);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -437,7 +476,6 @@ const Modal = styled.div`
   padding: 24px 24px 16px 24px;
   background: #fff;
   border-radius: 16px;
-
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -447,7 +485,7 @@ const Modal = styled.div`
 
 const ModalTitle = styled.h3`
   font-size: 20px;
-  font-size: 800;
+  font-weight: 800;
   margin-bottom: 8px;
 `;
 
@@ -455,6 +493,7 @@ const ModalDesc = styled.p`
   font-size: 14px;
   line-height: 22px;
   margin-bottom: 16px;
+  text-align: center;
 `;
 
 const BtnRow = styled.div`

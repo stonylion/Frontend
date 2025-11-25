@@ -20,9 +20,8 @@ const Endwritemain = () => {
 
   const [storyId, setStoryId] = useState(location.state?.storyId ?? null);
   const [kidName, setKidName] = useState("");
-  const [storyTitle, setStoryTitle] = useState("");  // ⭐ 추가된 부분
+  const [storyTitle, setStoryTitle] = useState("");
 
-  // ⭐ 아이 정보
   useEffect(() => {
     const fetchActiveChild = async () => {
       try {
@@ -40,7 +39,6 @@ const Endwritemain = () => {
     fetchActiveChild();
   }, []);
 
-  // ⭐ classic story ID 자동 조회
   useEffect(() => {
     if (storyId) return;
 
@@ -64,7 +62,6 @@ const Endwritemain = () => {
     fetchStory();
   }, [storyId]);
 
-  // ⭐ 여기! storyId 준비되면 스토리 제목 가져오기
   useEffect(() => {
     if (!storyId) return;
 
@@ -72,7 +69,7 @@ const Endwritemain = () => {
       try {
         const res = await api.get(`/api/story/${storyId}/`);
         console.log("📘 Story detail:", res.data);
-        setStoryTitle(res.data.title); // ⭐ 제목 상태 저장
+        setStoryTitle(res.data.title);
       } catch (err) {
         console.error("스토리 상세 조회 실패:", err);
       }

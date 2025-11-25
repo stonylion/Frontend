@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
+import api from "../../api/axios.js";
 
 const CHARACTER = "/img/end_rewrite/lion.svg";
-const MUTE_ICON = "/img/end_rewrite/mute.svg";
+const MUTE_ICON = "/img/end_rewrite/microphone.svg";
 const CHAT_ICON = "/img/end_rewrite/chat.svg";
 const CLOSE_ICON = "/icons/new_right_part.svg";
 
@@ -14,193 +15,162 @@ const Endwritestep02 = () => {
 
   const storyId = location.state?.storyId;
 
-  useEffect(() => {
-    console.log("🔥 step02 도착");
-    console.log("🟡 location.state =", location.state);
-    console.log("🟡 전달받은 storyId =", storyId);
-
-    if (!storyId) {
-      console.error("⚠️ storyId 없음! step01 → step02 전달 문제");
-    }
-  }, [storyId]);
-
-  // 말풍선 점프 애니메이션
-  const [isAnimating, setIsAnimating] = useState(true);
-
-  // 나가기 모달
-  const [open, setOpen] = useState(false);
-
-  // STT 관련
-  const wsRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
+  const [question, setQuestion] = useState("");
+  const [chatId, setChatId] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const [openExit, setOpenExit] = useState(false);
+  const [openEndingModal, setOpenEndingModal] = useState(false);
+
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordStartTime = useRef(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-
-    if (!token) {
-      console.error("access_token 없음, STT 연결 불가");
-      return;
-    }
-
-    const wsUrl = `ws://3.34.58.51/ws/story/record/?token=${token}`;
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log("🟢 STT WebSocket 연결 성공:", wsUrl);
-      startRecording();
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.message) console.log("WS message:", data.message);
-
-        if (data.status) {
-          console.log("WS status:", data.status);
-          if (data.status === "🛑 녹음완료") setIsRecording(false);
-        }
-
-        if (data.type === "transcription" && data.text) {
-          console.log("📄 STT 텍스트:", data.text);
-          setTranscript((prev) => (prev ? `${prev} ${data.text}` : data.text));
-        }
-
-        if (data.error || data.error_message) {
-          console.error("WS error:", data.error || data.error_message);
-        }
-      } catch (e) {
-        console.log("WS raw message:", event.data);
-      }
-    };
-
-    ws.onerror = (err) => {
-      console.error("❌ STT WebSocket 에러:", err);
-    };
-
-    ws.onclose = () => {
-      console.log("🔴 STT WebSocket 닫힘");
-      stopRecording(false);
-    };
-
-    return () => {
-      stopRecording(false);
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
+    if (!storyId) navigate("/rewrite_end/");
+  }, [storyId, navigate]);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm",
-      });
-      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recordStartTime.current = Date.now();
 
-      mediaRecorder.ondataavailable = (e) => {
-        const ws = wsRef.current;
-        if (e.data && e.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(e.data);
-        }
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      mediaRecorder.start(1000);
+      recorder.start(400);
+
       setIsRecording(true);
-      console.log("🎙️ 마이크 녹음 시작");
-
+      setIsAnimating(true);
+      console.log("🎙 녹음 시작");
     } catch (err) {
-      console.error("마이크 권한 오류 또는 MediaRecorder 에러:", err);
+      console.error("❌ 마이크 권한 오류:", err);
     }
   };
 
-  const stopRecording = (sendStopCommand = false) => {
-    const mediaRecorder = mediaRecorderRef.current;
+  const stopRecording = async (sendToServer = true) => {
+    const now = Date.now();
 
-    if (mediaRecorder) {
-      try {
-        mediaRecorder.stream.getTracks().forEach((t) => t.stop());
-        mediaRecorder.stop();
-      } catch (e) {
-        console.error("MediaRecorder stop 에러:", e);
-      }
-      mediaRecorderRef.current = null;
-    }
-
-    setIsRecording(false);
-
-    if (
-      sendStopCommand &&
-      wsRef.current &&
-      wsRef.current.readyState === WebSocket.OPEN
-    ) {
-      wsRef.current.send(JSON.stringify({ command: "stop" }));
-    }
-  };
-
-  const handleMuteClick = () => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.error("WebSocket이 아직 열려있지 않습니다.");
+    if (now - recordStartTime.current < 500) {
+      console.log("⏳ 최소 녹음시간 미달 → stopRecording 무시");
       return;
     }
 
-    if (isAnimating) {
-      ws.send(JSON.stringify({ command: "pause" }));
-      setIsAnimating(false);
-      console.log("🟡 STT 일시정지");
-    } else {
-      ws.send(JSON.stringify({ command: "resume" }));
-      setIsAnimating(true);
-      console.log("🟢 STT 재개");
+    const recorder = mediaRecorderRef.current;
+
+    if (recorder) {
+      try {
+        recorder.stop();
+        recorder.stream.getTracks().forEach((t) => t.stop());
+      } catch (err) {
+        console.error("❌ 녹음 종료 오류:", err);
+      }
     }
+
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+    setIsAnimating(false);
+
+    if (sendToServer) await sendVoiceToAI();
+  };
+
+  const sendVoiceToAI = async () => {
+    if (!audioChunksRef.current.length) {
+      console.warn("⚠ 전송할 오디오 없음");
+      return;
+    }
+
+    const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+    const file = new File([blob], "voice.webm", { type: "audio/webm" });
+
+    const form = new FormData();
+    form.append("audio", file);
+    form.append("chat_id", chatId ?? "");
+    form.append("voice", "alloy");
+
+    try {
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/voice/`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      console.log("📩 Voice AI 질문 응답:", res.data);
+
+      setChatId(res.data.chat_id);
+      setQuestion(res.data.text);
+
+      // 🔥 결말확장 유도 문구이면 → 모달 열기
+      const isEndingPrompt =
+        res.data.text?.includes("확장") ||
+        res.data.text?.includes("안녕") ||
+        res.data.text?.includes("확장해도") ||
+        res.data.text?.includes("완성해도") ||
+        res.data.text?.includes("마무리");
+
+      if (isEndingPrompt) {
+        setOpenEndingModal(true);
+      }
+    } catch (err) {
+      console.error("❌ 질문 생성 실패:", err);
+      setQuestion("질문을 불러오지 못했어. 다시 말해줄래?");
+    } finally {
+      audioChunksRef.current = [];
+    }
+  };
+
+  const handleExpandEnding = async () => {
+    try {
+      const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
+        chat_id: chatId,
+      });
+
+      navigate("/rewrite_end/step04", {
+        state: {
+          storyId,
+          extendedStory: res.data.extended_story,
+        },
+      });
+    } catch (err) {
+      console.error("❌ 결말 확장 실패:", err);
+    }
+  };
+
+  const handleContinueVoice = () => {
+    setOpenEndingModal(false);
+    // 그냥 다음 질문을 위해 사용자가 다시 mic 버튼을 눌러 말하게 유도
+  };
+
+  const handleMicClick = () => {
+    if (!isRecording) return startRecording();
+    stopRecording(true);
   };
 
   const handleChatClick = () => {
-    stopRecording(true);
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.close();
-    }
+    if (isRecording) stopRecording(false);
 
     navigate("/rewrite_end/step03", {
-      state: {
-        storyId,       
-        draftText: transcript,
-      },
+      state: { storyId, chatId, question },
     });
-  };
-
-  const handleExit = () => {
-    stopRecording(true);
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.close();
-    }
-
-    navigate("/rewrite_end/");
   };
 
   return (
     <Screen>
       <Header title="" showBack={false} />
 
-      <CloseBtn onClick={() => setOpen(true)}>
+      <CloseBtn onClick={() => setOpenExit(true)}>
         <img src={CLOSE_ICON} alt="닫기" />
       </CloseBtn>
 
       <Content>
-        <Character src={CHARACTER} alt="사자" />
-        <Question>
-          신데렐라 동화에서
-          <br />
-          가장 좋아했던 캐릭터가 뭐야?
-        </Question>
+        <Character src={CHARACTER} alt="character" />
+        <Question>{question || "기다려줘… 질문 준비 중이야!"}</Question>
       </Content>
 
       <ArcArea>
@@ -213,40 +183,42 @@ const Endwritestep02 = () => {
         </DotWrapper>
 
         <BottomIcons>
-          <IconButton onClick={handleMuteClick}>
-            <img src={MUTE_ICON} alt="음소거" />
-          </IconButton>
+          <MicButton onClick={handleMicClick}>
+            <img src={MUTE_ICON} alt="mic" />
+          </MicButton>
 
           <IconButton onClick={handleChatClick}>
-            <img src={CHAT_ICON} alt="채팅" />
+            <img src={CHAT_ICON} alt="chat" />
           </IconButton>
         </BottomIcons>
       </ArcArea>
 
-      {open && (
-        <Dim onClick={() => setOpen(false)}>
-          <Modal onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>앗! 그만두시겠어요?</ModalTitle>
-            <ModalDesc>
-              아직 대화를 완성하기엔 대화가 조금 부족해요.
-              <br />
-              그만하면 지금까지의 대화를 되돌릴 수 없어요.
-            </ModalDesc>
-
-            <BtnRow>
-              <ModalBtnGray onClick={handleExit}>나가기</ModalBtnGray>
-              <ModalBtnYellow onClick={() => setOpen(false)}>
-                계속 대화하기
-              </ModalBtnYellow>
-            </BtnRow>
-          </Modal>
-        </Dim>
+      {/* 결말 확장 모달 */}
+      {openEndingModal && (
+        <EndingDim onClick={() => setOpenEndingModal(false)}>
+          <EndingModal onClick={(e) => e.stopPropagation()}>
+            <EndingTitle>결말을 확장할까요?</EndingTitle>
+            <EndingDesc>
+              대화가 충분히 진행되었어요!
+              <br /> 결말을 확장할까요?
+            </EndingDesc>
+            <EndingBtnRow>
+              <EndingBtnGray onClick={handleContinueVoice}>
+                더 대화하기
+              </EndingBtnGray>
+              <EndingBtnYellow onClick={handleExpandEnding}>
+                결말 확장하기
+              </EndingBtnYellow>
+            </EndingBtnRow>
+          </EndingModal>
+        </EndingDim>
       )}
     </Screen>
   );
 };
 
 export default Endwritestep02;
+
 
 
 const bounce = keyframes`
@@ -274,33 +246,31 @@ const CloseBtn = styled.button`
   img {
     width: 28px;
     height: 28px;
-    display: block;
   }
 `;
 
 const Content = styled.div`
   flex: 1;
+  margin-top: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-top: 40px;
-  text-align: center;
 `;
 
 const Character = styled.img`
   width: 138px;
   margin-bottom: 20px;
-  user-select: none;
-  pointer-events: none;
 `;
 
 const Question = styled.p`
   color: #3a372f;
   font-family: "NanumSquareRound";
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
-  line-height: 28px;
+  line-height: 24px;
+  text-align: center;
+  padding: 0 24px;
 `;
 
 const ArcArea = styled.div`
@@ -343,8 +313,8 @@ const Dot = styled.div`
 
 const BottomIcons = styled.div`
   position: absolute;
-  bottom: 40px;
   width: 100%;
+  bottom: 40px;
   padding: 0 70px;
   display: flex;
   justify-content: space-between;
@@ -361,72 +331,82 @@ const IconButton = styled.button`
   }
 `;
 
-const Dim = styled.div`
-  position: absolute;
+const MicButton = styled(IconButton)`
+  img {
+    width: 35px;
+    height: 35px;
+  }
+`;
+
+/* ============================
+      결말 확장 모달 스타일
+============================ */
+
+const EndingDim = styled.div`
+  position: fixed;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 999;
+  justify-content: center;
+  z-index: 2000;
 `;
 
-const Modal = styled.div`
+const EndingModal = styled.div`
   width: 320px;
   height: 196px;
-  padding: 24px 24px 16px 24px;
-  background: #fff;
+  background: #ffffff;
   border-radius: 16px;
-
+  padding: 24px 24px 16px 24px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
 `;
 
-const ModalTitle = styled.h3`
-  color: #3a372f;
-  font-size: 20px;
-  font-weight: 800;
-  margin: 6px 0 8px;
+const EndingTitle = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: #000;
 `;
 
-const ModalDesc = styled.p`
-  color: #7a7a7a;
+const EndingDesc = styled.div`
+  margin-top: 6px;
   font-size: 14px;
-  line-height: 22px;
-  margin-bottom: 16px;
+  text-align: center;
+  color: #555;
+  line-height: 1.4;
 `;
 
-const BtnRow = styled.div`
+const EndingBtnRow = styled.div`
   display: flex;
   gap: 12px;
+  margin-top: 20px;
 `;
 
-const ModalBtnGray = styled.button`
+const EndingBtnGray = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #f1f1f1;
-  border-radius: 99px;
-  border: none;
-  color: #7a7a7a;
+  border-radius: 10px;
+  background: #e5e5e5;
+  color: #000;
   font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 600;
+  border: none;
 `;
 
-const ModalBtnYellow = styled.button`
+const EndingBtnYellow = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #ffd342;
-  border-radius: 99px;
-  border: none;
-  color: #fff;
+  border-radius: 10px;
+  background: #ffd342;
+  color: #000;
   font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 600;
+  border: none;
 `;
+
