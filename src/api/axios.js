@@ -1,7 +1,6 @@
 import axios from "axios";
 
-// 기본 axios 인스턴스 (GET 요청용)
-// GET 요청에는 Content-Type 제거 → preflight 방지
+// 기본 axios 인스턴스
 const api = axios.create({
     baseURL: "http://3.34.58.51/",
 });
@@ -14,9 +13,17 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // POST/PUT/PATCH 요청인 경우만 Content-Type 추가
+        // POST/PUT/PATCH 요청일 때만 Content-Type 설정
         if (["post", "put", "patch"].includes(config.method)) {
-            config.headers["Content-Type"] = "application/json";
+
+            // FormData면 Content-Type 자동 설정되게 두기
+            if (config.data instanceof FormData) {
+                delete config.headers["Content-Type"]; 
+            } 
+            // JSON일 때만 기존 로직 유지
+            else {
+                config.headers["Content-Type"] = "application/json";
+            }
         }
 
         return config;
