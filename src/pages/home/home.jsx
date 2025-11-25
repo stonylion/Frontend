@@ -64,7 +64,13 @@ function Home() {
         setDeleteTarget(story);
         handleDelete();
     };
-    const reWrite = (story) => console.log('결말 확장하기', story.title);
+    const reWrite = (story) => {
+  navigate("/rewrite_end", {
+    state: {
+      storyId: story.id   //🍅 결말확장으로 이동
+    }
+  });
+};
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 

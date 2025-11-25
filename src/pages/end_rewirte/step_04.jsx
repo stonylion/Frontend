@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import api from "../../api/axios.js";
 
 const LION = "/img/end_rewrite/lion.svg";
 const STAR_Y = "/img/end_rewrite/star_yellow.svg";
@@ -12,10 +13,48 @@ const PIGTAIL = "/img/end_rewrite/pigtail.svg";
 const BOOK = "/img/end_rewrite/book.svg";
 
 const MIC_BUTTON = "/img/end_rewrite/yellow_plat.svg";
-const CLOSE_ICON = "/img/end_rewrite/close.svg"; // 오른쪽 X 버튼
+const CLOSE_ICON = "/img/end_rewrite/close.svg";
 
-const Endwritemain = () => {
+const Endwritestep04 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // step03에서 전달된 데이터 받기
+  const extendedStory = location.state?.extendedStory || null;
+  const storyId = location.state?.storyId || null;
+
+  const [kidName, setKidName] = useState("");
+
+  // 활성 아이 불러오기
+  useEffect(() => {
+    const fetchActiveChild = async () => {
+      try {
+        const res = await api.get("api/accounts/children/");
+        const kids = res.data.children;
+        const activeKid = kids.find((k) => k.is_active);
+        if (activeKid) setKidName(activeKid.name);
+      } catch (e) {
+        console.error("아이 정보 조회 실패:", e);
+      }
+    };
+
+    fetchActiveChild();
+  }, []);
+
+  const goToPlayer = () => {
+    if (!extendedStory) {
+      alert("동화를 불러오는 중이에요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    navigate("/story-player", {
+      state: {
+        book: {
+          story: extendedStory,
+        },
+      },
+    });
+  };
 
   return (
     <Screen>
@@ -36,8 +75,9 @@ const Endwritemain = () => {
 
       <Content>
         <Character src={LION} alt="캐릭터" />
+
         <TextGroup>
-          <Line1>00이가 만든 </Line1>
+          <Line1>{kidName || "우리 아이"}이(가) 만든 </Line1>
           <Line2>
             <Highlight>동화의 뒷 이야기</Highlight>가
             <br />
@@ -50,18 +90,18 @@ const Endwritemain = () => {
         <Arc />
 
         <HintText>
-          버튼을 눌러 <br /> 대화를 시작해보세요
+          버튼을 눌러 <br /> 동화를 시작해보세요.
         </HintText>
 
-        <MicButton type="button" onClick={() => navigate("/rewrite_end/step01")}>
-          <img src={MIC_BUTTON} alt="녹음 버튼" />
+        <MicButton type="button" onClick={goToPlayer}>
+          <img src={MIC_BUTTON} alt="시작하기" />
         </MicButton>
       </ArcArea>
     </Screen>
   );
 };
 
-export default Endwritemain;
+export default Endwritestep04;
 
 
 const Screen = styled.div`

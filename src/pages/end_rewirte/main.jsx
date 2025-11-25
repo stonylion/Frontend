@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const LION = "/img/end_rewrite/lion.svg";
 const STAR_Y = "/img/end_rewrite/star_yellow.svg";
@@ -10,11 +10,86 @@ const STAR_O = "/img/end_rewrite/org_star.svg";
 const PENCIL = "/img/end_rewrite/pencil.svg";
 const PIGTAIL = "/img/end_rewrite/pigtail.svg";
 const BOOK = "/img/end_rewrite/book.svg";
-
 const MIC_BUTTON = "/img/end_rewrite/record.svg";
+
+import api from "../../api/axios.js";
 
 const Endwritemain = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [storyId, setStoryId] = useState(location.state?.storyId ?? null);
+  const [kidName, setKidName] = useState("");
+  const [storyTitle, setStoryTitle] = useState("");  // ⭐ 추가된 부분
+
+  // ⭐ 아이 정보
+  useEffect(() => {
+    const fetchActiveChild = async () => {
+      try {
+        const res = await api.get("api/accounts/children/");
+        const kids = res.data.children;
+
+        const activeKid = kids.find((k) => k.is_active);
+        if (activeKid) {
+          setKidName(activeKid.name);
+        }
+      } catch (e) {
+        console.error("아이 정보 조회 실패:", e);
+      }
+    };
+    fetchActiveChild();
+  }, []);
+
+  // ⭐ classic story ID 자동 조회
+  useEffect(() => {
+    if (storyId) return;
+
+    const fetchStory = async () => {
+      try {
+        const res = await api.get("/api/story/", {
+          params: { category: "classic" },
+        });
+
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const classic =
+            res.data.find((s) => s.category === "classic") || res.data[0];
+
+          setStoryId(classic.id);
+        }
+      } catch (err) {
+        console.error("스토리 조회 실패:", err);
+      }
+    };
+
+    fetchStory();
+  }, [storyId]);
+
+  // ⭐ 여기! storyId 준비되면 스토리 제목 가져오기
+  useEffect(() => {
+    if (!storyId) return;
+
+    const fetchStoryDetail = async () => {
+      try {
+        const res = await api.get(`/api/story/${storyId}/`);
+        console.log("📘 Story detail:", res.data);
+        setStoryTitle(res.data.title); // ⭐ 제목 상태 저장
+      } catch (err) {
+        console.error("스토리 상세 조회 실패:", err);
+      }
+    };
+
+    fetchStoryDetail();
+  }, [storyId]);
+
+  // 버튼 클릭
+  const handleStart = () => {
+    if (!storyId) {
+      alert("동화 정보를 불러오는 중입니다. 잠시만 기다려 주세요.");
+      return;
+    }
+
+    navigate("/rewrite_end/step01", { state: { storyId } });
+  };
 
   return (
     <Screen>
@@ -33,23 +108,22 @@ const Endwritemain = () => {
         <Character src={LION} alt="캐릭터" />
 
         <TextGroup>
-          <Line1>안녕, 000!</Line1>
+          <Line1>안녕, {kidName || "친구"}!</Line1>
           <Line2>
-            <Highlight>신데렐라</Highlight> 동화에 대해
+            <Highlight>{storyTitle || ""}</Highlight> 동화에 대해
             <br />
             같이 이야기해볼까?
           </Line2>
         </TextGroup>
       </Content>
 
-      {/*반원*/}
       <ArcArea>
         <Arc />
         <HintText>
           버튼을 눌러 <br /> 대화를 시작해보세요
         </HintText>
 
-        <MicButton type="button" onClick={() => navigate("/rewrite_end/step01")}>
+        <MicButton type="button" onClick={handleStart}>
           <img src={MIC_BUTTON} alt="녹음 버튼" />
         </MicButton>
       </ArcArea>
@@ -82,7 +156,7 @@ const StarYellow = styled.img.attrs({ src: STAR_Y })`
   width: 20px;
   height: 100px;
   left: 119px;
-  top: 70px; /* 50px 아래 */
+  top: 70px;
 `;
 
 const StarPurple = styled.img.attrs({ src: STAR_P })`
@@ -106,7 +180,7 @@ const Pencil = styled.img.attrs({ src: PENCIL })`
   width: 60px;
   height: 45px;
   left: 55.484px;
-  top: 260px; /* 20px 아래 */
+  top: 260px;
 `;
 
 const BookDeco = styled.img.attrs({ src: BOOK })`
@@ -114,7 +188,7 @@ const BookDeco = styled.img.attrs({ src: BOOK })`
   width: 80px;
   height: 70px;
   left: 290px;
-  top: 430px; /* 40px 아래 */
+  top: 430px;
   transform: rotate(-10deg);
 `;
 
@@ -123,7 +197,7 @@ const Pigtail = styled.img.attrs({ src: PIGTAIL })`
   width: 50px;
   height: 40px;
   right: 64.803px;
-  top: 130px; /* 60px 아래 */
+  top: 130px;
   transform: rotate(350deg);
 `;
 
@@ -164,7 +238,6 @@ const Line2 = styled.p`
 const Highlight = styled.span`
   color: #72cacb;
 `;
-
 
 const ArcArea = styled.div`
   position: relative;

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled, { keyframes, css } from "styled-components";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
+import api from "../../api/axios.js";
 
 const PROFILE = "/img/end_rewrite/profile.svg";
 const RECORD = "/img/end_rewrite/yellow_rec.svg";
@@ -10,99 +11,157 @@ const CLOSE_ICON = "/icons/new_right_part.svg";
 
 const Endwritestep03 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [messages, setMessages] = useState([
-    { sender: "bot", text: "신데렐라 동화에서 가장 좋아했던 캐릭터가 뭐야?" },
-  ]);
+  const storyId = location.state?.storyId;
+  const draftText = location.state?.draftText || "";
 
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
-  const [open, setOpen] = useState(false); // 닫기 모달
-  const [loading, setLoading] = useState(false); // 로딩 모달
-  const [stepCount, setStepCount] = useState(0); // 왕복 횟수
+  const [chatId, setChatId] = useState(null); 
+  const [canFinalize, setCanFinalize] = useState(false); 
+
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef(null);
 
-  // 자동 스크롤
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 메시지 전송
-  const handleSend = (e) => {
+  useEffect(() => {
+    console.log("🔥 step03 도착");
+    console.log("🟡 storyId =", storyId);
+    console.log("🟡 draftText =", draftText);
+
+    if (!storyId) navigate("/rewrite_end/");
+  }, [storyId]);
+
+  useEffect(() => {
+    const fetchOpening = async () => {
+      try {
+        const res = await api.post(`/api/AI/stories/${storyId}/extend-chat/stream/`, {
+          chat_id: null,
+          user_message: "",
+          input_modality: "text",
+        });
+
+        console.log("📩 Opening 응답:", res.data);
+
+        setChatId(res.data.chat_id);
+
+        setCanFinalize(res.data.can_finalize || false);
+
+        setMessages([{ sender: "bot", text: res.data.text }]);
+
+      } catch (err) {
+        console.error("⚠️ Opening 실패:", err);
+        setMessages([{ sender: "bot", text: "대화를 불러오지 못했어요…" }]);
+      }
+    };
+
+    if (storyId) fetchOpening();
+  }, [storyId]);
+
+  const handleSend = async (e) => {
     e.preventDefault();
 
-    if (!isFocused) {
-      navigate("/rewrite_end/step02");
-      return;
-    }
+    if (!inputValue.trim()) return;
+    if (!chatId) return;
 
-    if (inputValue.trim() === "") return;
-
-    // 사용자 메시지 추가
-    const userMsg = { sender: "user", text: inputValue };
-    setMessages((prev) => [...prev, userMsg]);
+    const text = inputValue;
     setInputValue("");
+    setMessages((prev) => [...prev, { sender: "user", text }]);
 
-    const nextStep = stepCount + 1;
-    setStepCount(nextStep);
+    try {
+      const res = await api.post(`/api/AI/stories/${storyId}/extend-chat/stream/`, {
+        chat_id: chatId,
+        user_message: text,
+        input_modality: "text",
+      });
 
-    // 더미 챗봇 응답
-    setTimeout(() => {
-      const botReply =
-        nextStep >= 3
-          ? { sender: "bot", text: "이제 결말을 확장해도 될까?" }
-          : { sender: "bot", text: "그렇구나! 신데렐라 이야기 정말 다양하게 해석할 수 있지!" };
+      console.log("📩 Chat API 응답:", res.data);
 
-      setMessages((prev) => [...prev, botReply]);
-    }, 900);
+      const { text: botReply, can_finalize: can, chat_id: newChatId, reason } = res.data;
+
+      setChatId(newChatId);
+
+      if (reason === "first_opening") {
+        setCanFinalize(false);
+      } else {
+        setCanFinalize(can || false);
+      }
+
+      if (
+        botReply.includes("결말을 확장해도 될까") ||
+        botReply.includes("결말을 확장할까") ||
+        botReply.includes("확장해볼까") ||
+        can
+      ) {
+        setCanFinalize(true);
+      }
+
+      setMessages((prev) => [...prev, { sender: "bot", text: botReply }]);
+
+    } catch (err) {
+      console.error("⚠️ 채팅 실패:", err);
+      setMessages((prev) => [...prev, { sender: "bot", text: "오류가 발생했어요." }]);
+    }
   };
 
-  // 결말 확장하기
-  const handleExpandEnding = () => {
+  const handleExpandEnding = async () => {
+    if (!chatId) return;
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
+        chat_id: chatId,
+      });
+
+      console.log("😊 결말 확장 성공:", res.data);
+
+      navigate("/rewrite_end/step04", {
+        state: {
+          storyId,
+          extendedStory: res.data.extended_story,
+        },
+      });
+    } catch (err) {
+      console.error("⚠️ 결말 확장 실패:", err);
+    } finally {
       setLoading(false);
-      navigate("/rewrite_end/step04");
-    }, 2000);
+    }
   };
 
   return (
     <Screen>
-      {/* 상단 헤더 */}
       <Header title="채팅" showBack={false} />
 
-      {/* 닫기 버튼 */}
       <CloseBtn onClick={() => setOpen(true)}>
         <img src={CLOSE_ICON} alt="닫기" />
       </CloseBtn>
 
-      {/* 닫기 모달 */}
       {open && (
         <Dim onClick={() => setOpen(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
             <ModalTitle>앗! 그만두시겠어요?</ModalTitle>
             <ModalDesc>
-              아직 대화를 완성하기엔 대화가 조금 부족해요.
+              아직 대화를 완성하기엔 대화가 부족해요.
               <br />
-              그만하면 지금까지의 대화를 되돌릴 수 없어요.
+              나가면 지금까지의 대화를 되돌릴 수 없어요.
             </ModalDesc>
 
             <BtnRow>
-              <ModalBtnGray onClick={() => navigate("/rewrite_end/")}>
-                나가기
-              </ModalBtnGray>
-              <ModalBtnYellow onClick={() => setOpen(false)}>
-                계속 대화하기
-              </ModalBtnYellow>
+              <ModalBtnGray onClick={() => navigate("/rewrite_end/")}>나가기</ModalBtnGray>
+              <ModalBtnYellow onClick={() => setOpen(false)}>계속 대화하기</ModalBtnYellow>
             </BtnRow>
           </Modal>
         </Dim>
       )}
 
-      {/* 로딩 모달 */}
       {loading && (
         <LoadingDim>
           <LoadingBox>
@@ -113,27 +172,21 @@ const Endwritestep03 = () => {
             <LoadingText>
               결말을 확장하고 있어요!
               <br />
-              조금만 기다려주세요
+              잠시만 기다려주세요
             </LoadingText>
           </LoadingBox>
         </LoadingDim>
       )}
 
-      {/* 채팅 영역 */}
       <ChatContainer>
-        {messages.map((msg, idx) => (
-          <MessageRow key={idx} $isUser={msg.sender === "user"}>
-            {msg.sender === "bot" && (
-              <ProfileIcon src={PROFILE} alt="profile" />
-            )}
-            <MessageBubble $isUser={msg.sender === "user"}>
-              {msg.text}
-            </MessageBubble>
+        {messages.map((msg, i) => (
+          <MessageRow key={i} $isUser={msg.sender === "user"}>
+            {msg.sender === "bot" && <ProfileIcon src={PROFILE} />}
+            <MessageBubble $isUser={msg.sender === "user"}>{msg.text}</MessageBubble>
           </MessageRow>
         ))}
 
-        {/* 결말 확장하기 버튼 */}
-        {stepCount >= 3 && (
+        {canFinalize && (
           <ButtonWrapper>
             <EndButton onClick={handleExpandEnding}>결말 확장하기</EndButton>
 
@@ -153,18 +206,15 @@ const Endwritestep03 = () => {
         <div ref={chatEndRef} />
       </ChatContainer>
 
-      {/* 인풋 바 */}
       <InputBar onSubmit={handleSend}>
         <Input
-          type="text"
           placeholder="메시지를 입력해주세요"
           value={inputValue}
-          onFocus={() => setIsFocused(true)}
           onChange={(e) => setInputValue(e.target.value)}
+          onFocus={() => setIsFocused(true)}
         />
-
         <RecordBtn type="submit">
-          <img src={isFocused ? SEND : RECORD} alt="send / record" />
+          <img src={isFocused ? SEND : RECORD} alt="send" />
         </RecordBtn>
       </InputBar>
     </Screen>
@@ -172,6 +222,7 @@ const Endwritestep03 = () => {
 };
 
 export default Endwritestep03;
+
 
 
 const LoadingDim = styled.div`
@@ -234,7 +285,6 @@ const LoadingText = styled.p`
   color: #000;
 `;
 
-
 const Screen = styled.div`
   position: relative;
   display: flex;
@@ -270,7 +320,6 @@ const ChatContainer = styled.div`
     display: none;
   }
 `;
-
 
 const MessageRow = styled.div`
   display: flex;
@@ -314,7 +363,6 @@ const MessageBubble = styled.div`
         `}
 `;
 
-
 const InputBar = styled.form`
   position: fixed;
   bottom: 0;
@@ -351,7 +399,6 @@ const RecordBtn = styled.button`
   }
 `;
 
-
 const ButtonWrapper = styled.div`
   display: flex;
   gap: 8px;
@@ -372,18 +419,17 @@ const EndButton = styled.button`
 `;
 
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background-color: rgba(0,0,0,0.4);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 999;
 `;
-
 
 const Modal = styled.div`
   width: 320px;
@@ -399,10 +445,9 @@ const Modal = styled.div`
   align-items: center;
 `;
 
-
 const ModalTitle = styled.h3`
   font-size: 20px;
-  font-weight: 800;
+  font-size: 800;
   margin-bottom: 8px;
 `;
 
@@ -440,4 +485,3 @@ const ModalBtnYellow = styled.button`
   font-weight: 800;
   cursor: pointer;
 `;
-
