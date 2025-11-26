@@ -57,7 +57,7 @@ function MypageKid() {
     
     const handleBack = () => {
         if (isSaved) {
-            navigate('/mypage-kid-detail');
+            navigate(`/mypage-kid-detail/${child_id}`);
         } else {
             setShowBackModal(true);
         }

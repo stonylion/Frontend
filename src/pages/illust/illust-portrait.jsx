@@ -1,42 +1,18 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import Header from '../../components/Header';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../../components/Button';
 import { useState } from 'react';
 import LoadingModal from '../../components/Loading';
 
 function IllustPortrait() {
     const navigate = useNavigate();
+    const { story_id } =useParams();
 
     const [isLoading, setIsLoading] = useState(false);
 
     const [showStopModal, setShowStopModal] = useState(false);
-
-    const handleStopModal = () => {
-        setShowStopModal(true);
-    };
-
-    const stopStory = () => {
-        setShowStopModal(false);
-        navigate('/home');
-    };
-
-    const keepStory = () => {
-        setShowStopModal(false);
-    };
-
-    const handleNext = async () => {
-        setIsLoading(true);
-
-        try {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            setIsLoading(false);
-            navigate('/illust-landscape');
-        } catch (error) {
-            console.error(error);
-            setIsLoading(false);
-        }
-    };
 
     const styleImages = {
         0: [
@@ -66,15 +42,72 @@ function IllustPortrait() {
     };
 
     const [styles] = useState([
-        { label: '수채화', img: '/icons/illust-style-1.svg'},
-        { label: '유화', img: '/icons/illust-style-2.svg'},
-        { label: '크레파스', img: '/icons/illust-style-3.svg'},
-        { label: '3D 애니메이션', img: '/icons/illust-style-4.svg'},
+        { label: '수채화', value: 'watercolor', img: '/icons/illust-style-1.svg'},
+        { label: '유화', value: 'oil', img: '/icons/illust-style-2.svg'},
+        { label: '크레파스', value: 'crayon', img: '/icons/illust-style-3.svg'},
+        { label: '3D 애니메이션', value: '3d', img: '/icons/illust-style-4.svg'},
     ]);
 
     const [selectedStyle, setSelectedStyle] = useState(0);
 
     const images = styleImages[selectedStyle];
+    const handleStopModal = () => {
+        setShowStopModal(true);
+    };
+
+    const stopStory = () => {
+        setShowStopModal(false);
+        navigate('/home');
+    };
+
+    const keepStory = () => {
+        setShowStopModal(false);
+    };
+
+    const handleNext = async () => {
+        setIsLoading(true);
+
+        try {
+            const selected = styles[selectedStyle];
+
+            const response = await api.post(`/api/story/illustration/${story_id}/style/`, {
+                style: selected.value
+            });
+            console.log("삽화 스타일 선택 성공:", response.data);
+
+            const IllustResponse = await api.post(`/api/AI/illustration/generate/`, {
+                story_id: story_id
+            });
+            const job_id = IllustResponse.data.job_id;
+            checkJobStatus(job_id);
+            console.log('삽화 생성 Job_id:', job_id);
+        } catch (error) {
+            console.error('삽화 스타일 전송 실패:', error);
+            setIsLoading(false);
+        }
+    };
+
+    const checkJobStatus = async (job_id) => {
+        try {
+            const StatusResponse = await api.get(`/api/AI/illustration/job/${job_id}/`);
+            const status = StatusResponse.data.status;
+
+            if (status === 'SUCCESS')  {
+                console.log("삽화 생성 완료:", StatusResponse.data);
+                setIsLoading(false);
+                navigate(`/illust-landscape/${story_id}`);
+            } else if (status === 'FAILED') {
+                console.error("삽화 생성 실패:", StatusResponse.data);
+                setIsLoading(false);
+            } else if (status === 'RUNNING') {
+                console.log('삽화 생성 runngin 중:')
+                setTimeout(() => checkJobStatus(job_id), 2000);
+            }
+        } catch (e) {
+            console.log("job 상태 조회 실패:", e);
+            setIsLoading(false);
+        }
+    };
 
     return (
         <>

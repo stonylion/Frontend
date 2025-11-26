@@ -531,7 +531,8 @@ const TextBox = styled.div`
 const StoryTitle = styled.div`
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
     align-self: stretch;
     color: #393939;
     text-overflow: ellipsis;
