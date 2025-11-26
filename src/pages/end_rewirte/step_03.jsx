@@ -76,12 +76,9 @@ const Endwritestep03 = () => {
 
       // 결말 확장 문구 자동 감지
       const isEndingPrompt =
-        botReply?.includes("결말") ||
-        botReply?.includes("엔딩") ||
         botReply?.includes("확장해도") ||
         botReply?.includes("완성해도") ||
-        botReply?.includes("마무리") ||
-        botReply?.includes("엔딩으로");
+        botReply?.includes("확장") ||
 
       const finalFlag = can_finalize || isEndingPrompt;
       setCanFinalize(finalFlag);
