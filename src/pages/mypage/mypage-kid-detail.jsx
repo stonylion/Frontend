@@ -17,29 +17,50 @@ function MypageKidDetail() {
 
     const [goodStories, setGoodStories] = useState([
     {
-        id: 21,
-        title: "행복을 나누는 작은 토끼",
-        runtime: "0-3분",
-        img: "",
-        created_at: "2025-11-26"
+        id: 1,
+        title: "좋은 동화 1",
+        runtime: "5분",
+        img: "/icons/book1.svg",
+        created_at: "2025-11-25"
     },
     {
-        id: 5,
-        title: "작은 정원, 큰 우정",
-        runtime: "0-3분",
-        img: "",
-        created_at: "2025-11-24"
+        id: 2,
+        title: "좋은 동화 2",
+        runtime: "7분",
+        img: "/icons/book2.svg",
+        created_at: "2025-11-20"
     },
+    {
+        id: 3,
+        title: "좋은 동화 1",
+        runtime: "5분",
+        img: "/icons/book1.svg",
+        created_at: "2025-11-25"
+    },
+    {
+        id: 4,
+        title: "좋은 동화 2",
+        runtime: "7분",
+        img: "/icons/book2.svg",
+        created_at: "2025-11-20"
+    }
 ]);
 
 const [badStories, setBadStories] = useState([
     {
-        id: 22,
-        title: "친구와 나누기",
-        runtime: "0-3분",
-        img: "",
-        created_at: "2025-11-26"
+        id: 3,
+        title: "아쉬운 동화 1",
+        runtime: "6분",
+        img: "/icons/book3.svg",
+        created_at: "2025-11-18"
     },
+    {
+        id: 4,
+        title: "아쉬운 동화 2",
+        runtime: "8분",
+        img: "/icons/book4.svg",
+        created_at: "2025-11-22"
+    }
 ]);
     const [nickname, setNickname] = useState('');
     const [birth, setBirth] = useState('');
@@ -48,11 +69,6 @@ const [badStories, setBadStories] = useState([
     const [activeGoodStoryId, setActiveGoodStoryId] = useState(null);
     const [activeBadStoryId, setActiveBadStoryId] = useState(null);
     const [deleteTarget, setDeleteTarget] =useState(null);
-    const [showNEODetail, setShowNEODetail] = useState(false);
-
-    const toggleNEODetail = () => {
-        setShowNEODetail(prev => !prev);
-    };
 
     const handleEdit = () => {
         navigate(`/mypage-kid/${child_id}`);
@@ -206,28 +222,12 @@ const [badStories, setBadStories] = useState([
                     <p>NEO 성격 분석 </p>
                     <span>결과예요</span>
                 </ResultLabel>
-                <Pentagon>
-<<<<<<< HEAD
-                    <img src='/imges/pentagon1.svg' />
-=======
-                    <img src='/imges/pentagon.svg' />
->>>>>>> 88fee455265f23ce0b6e57647bbd22ad1a14a487
-                </Pentagon>
+                <Pentagon></Pentagon>
                 <AnalysisComent>AI가 아이의 대화 내용을 분석해 산출한 참고용 결과로,<br />보다 정확한 성격 검사를 원할 시, 정식 검사를 권장드립니다.</AnalysisComent>
                 <DetailLabel>
                     상세 분석
-                    <img
-                        src={showNEODetail ? '/icons/arrow-up.svg' : '/icons/arrow-down.svg'} 
-                        width={16}
-                        onClick={toggleNEODetail}
-                    />
+                    <img src='/icons/arrow-down.svg' width={16} />
                 </DetailLabel>
-
-                {showNEODetail && (
-                    <NEODetailContainer>
-                        <img src='/imges/data1.svg' />
-                    </NEODetailContainer>
-                )}
                 <Line></Line>
             </NEO>
 
@@ -256,9 +256,7 @@ const [badStories, setBadStories] = useState([
                 </WordProgress>
                 <WordTop5>
                     <ReportLabel>한 달 동안 가장 많이 사용한 단어 Top 5</ReportLabel>
-                    <Circle>
-                        <img src='/imges/circle.svg' />
-                    </Circle>
+                    <Circle></Circle>
                     <AnalysisComent>NDW란 고유 단어의 수로, 아이의 발화 중 중복을 제외한<br />유일한 단어의 수를 세어 어휘의 다양성을 측정하는 기준입니다.</AnalysisComent>
                 </WordTop5>
                 <Line style={{ marginTop: '32px'}} ></Line>
@@ -544,8 +542,6 @@ const ResultLabel = styled.div`
 const Pentagon = styled.div`
     width: 358px;
     height: 220px;
-    display: flex;
-    justify-content: center;
 `
 
 const AnalysisComent = styled.div`
@@ -650,8 +646,6 @@ const WordTop5 = styled.div`
 const Circle = styled.div`
     width: 358px;
     height: 240px;
-    display: flex;
-    justify-content: center;
 `
 
 const Custom = styled.div`
@@ -865,92 +859,4 @@ const ConfirmBtn = styled.button`
     font-size: 14px;
     font-weight: 800;
     cursor: pointer;
-`
-
-const NEODetailContainer = styled.div`
-    display: flex;
-    width: 358px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 64px;
-    align-self: stretch;
-    border-radius: 16px;
-    background: rgba(246, 246, 246, 0.40);
-`
-
-const Box = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 24px;
-    align-self: stretch;
-`
-
-const Label = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 8px;
-    color: #000;
-text-align: center;
-
-font-family: "SOYO Maple TTF";
-font-size: 20px;
-font-weight: 700;
-line-height: 28px;
-`
-
-const Badge = styled.div`
-    display: flex;
-height: 24px;
-padding: 4px 10px;
-justify-content: center;
-align-items: center;
-gap: 6px;
-border-radius: 9999px;
-background: #FFF0E5;
-`
-
-const NEOcontent = styled.div`
-    width: 326px;
-`
-
-const NEOcontents = styled.div`
-    width: 326px;
-    height: 44px;
-    display: flex;
-    gap: 12px;
-`
-
-const contentsLabel = styled.div`
-    display: flex;
-width: 72px;
-padding: 4px 10px;
-justify-content: center;
-align-items: center;
-gap: 10px;
-border-radius: 8px;
-background:  #F1F1F1;
-color: #7A7A7A;
-text-align: center;
-
-/* Body/bold */
-font-family: NanumSquareRound;
-font-size: 14px;
-font-style: normal;
-font-weight: 700;
-line-height: 22px; /* 157.143% */
-`
-    
-const NEOcontentstext = styled.div`
-    color: #393939;
-
-/* Body/regular */
-font-family: NanumSquareRound;
-font-size: 14px;
-font-style: normal;
-font-weight: 400;
-line-height: 22px; /* 157.143% */
-min-height: 44px;
-flex: 1 0 0;
 `
