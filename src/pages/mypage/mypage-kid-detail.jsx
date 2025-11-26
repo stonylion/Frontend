@@ -48,6 +48,11 @@ const [badStories, setBadStories] = useState([
     const [activeGoodStoryId, setActiveGoodStoryId] = useState(null);
     const [activeBadStoryId, setActiveBadStoryId] = useState(null);
     const [deleteTarget, setDeleteTarget] =useState(null);
+    const [showNEODetail, setShowNEODetail] = useState(false);
+
+    const toggleNEODetail = () => {
+        setShowNEODetail(prev => !prev);
+    };
 
     const handleEdit = () => {
         navigate(`/mypage-kid/${child_id}`);
@@ -207,8 +212,18 @@ const [badStories, setBadStories] = useState([
                 <AnalysisComent>AI가 아이의 대화 내용을 분석해 산출한 참고용 결과로,<br />보다 정확한 성격 검사를 원할 시, 정식 검사를 권장드립니다.</AnalysisComent>
                 <DetailLabel>
                     상세 분석
-                    <img src='/icons/arrow-down.svg' width={16} />
+                    <img
+                        src={showNEODetail ? '/icons/arrow-up.svg' : '/icons/arrow-down.svg'} 
+                        width={16}
+                        onClick={toggleNEODetail}
+                    />
                 </DetailLabel>
+
+                {showNEODetail && (
+                    <NEODetailContainer>
+                        <img src='/imges/data.svg' />
+                    </NEODetailContainer>
+                )}
                 <Line></Line>
             </NEO>
 
@@ -846,4 +861,92 @@ const ConfirmBtn = styled.button`
     font-size: 14px;
     font-weight: 800;
     cursor: pointer;
+`
+
+const NEODetailContainer = styled.div`
+    display: flex;
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 64px;
+    align-self: stretch;
+    border-radius: 16px;
+    background: rgba(246, 246, 246, 0.40);
+`
+
+const Box = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    align-self: stretch;
+`
+
+const Label = styled.div`
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 8px;
+    color: #000;
+text-align: center;
+
+font-family: "SOYO Maple TTF";
+font-size: 20px;
+font-weight: 700;
+line-height: 28px;
+`
+
+const Badge = styled.div`
+    display: flex;
+height: 24px;
+padding: 4px 10px;
+justify-content: center;
+align-items: center;
+gap: 6px;
+border-radius: 9999px;
+background: #FFF0E5;
+`
+
+const NEOcontent = styled.div`
+    width: 326px;
+`
+
+const NEOcontents = styled.div`
+    width: 326px;
+    height: 44px;
+    display: flex;
+    gap: 12px;
+`
+
+const contentsLabel = styled.div`
+    display: flex;
+width: 72px;
+padding: 4px 10px;
+justify-content: center;
+align-items: center;
+gap: 10px;
+border-radius: 8px;
+background:  #F1F1F1;
+color: #7A7A7A;
+text-align: center;
+
+/* Body/bold */
+font-family: NanumSquareRound;
+font-size: 14px;
+font-style: normal;
+font-weight: 700;
+line-height: 22px; /* 157.143% */
+`
+    
+const NEOcontentstext = styled.div`
+    color: #393939;
+
+/* Body/regular */
+font-family: NanumSquareRound;
+font-size: 14px;
+font-style: normal;
+font-weight: 400;
+line-height: 22px; /* 157.143% */
+min-height: 44px;
+flex: 1 0 0;
 `

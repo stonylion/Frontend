@@ -80,6 +80,7 @@ function Home() {
         setShowDeleteModal(true);
     };
     const confirmDelete = async () => {
+        console.log(deleteTarget.id);
         if (!deleteTarget) return;
 
         try {
