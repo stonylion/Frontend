@@ -1,8 +1,15 @@
 import axios from "axios";
 
+const BASE_URL = import.meta.env.VITE_API_URL;
+
+// fallback: 실수로 환경변수 없을 때 경고
+if (!BASE_URL) {
+    console.warn("⚠️ VITE_API_URL 환경변수가 설정되지 않았습니다!");
+}
+
 // 기본 axios 인스턴스
 const api = axios.create({
-    baseURL: "http://3.34.58.51/",
+    baseURL: BASE_URL,
 });
 
 // ===== 요청 인터셉터 =====
@@ -19,7 +26,7 @@ api.interceptors.request.use(
 
             // FormData면 Content-Type 자동 설정되게 두기
             if (config.data instanceof FormData) {
-                delete config.headers["Content-Type"]; 
+                delete config.headers["Content-Type"];
             } 
             // JSON일 때만 기존 로직 유지
             else {
@@ -46,12 +53,13 @@ api.interceptors.response.use(
             try {
                 const refreshToken = localStorage.getItem("refresh_token");
 
-                const res = await axios.post(
-                    "http://3.34.58.51/api/accounts/token/refresh/",
+                // refreshToken 요청도 baseURL + endpoint 조합으로 호출
+                const refreshResponse = await axios.post(
+                    `${BASE_URL}/api/accounts/token/refresh/`,
                     { refresh: refreshToken }
                 );
 
-                const newAccessToken = res.data.access;
+                const newAccessToken = refreshResponse.data.access;
 
                 // 새 토큰 저장
                 localStorage.setItem("access_token", newAccessToken);
