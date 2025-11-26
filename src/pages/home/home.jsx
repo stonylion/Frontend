@@ -247,7 +247,7 @@ function Home() {
                             <HistoryContainer key={history.id}>
                                 <Card>
                                     <img
-                                        src={history.story?.img}
+                                        src={history.story?.img || '/icons/book.svg'}
                                         onClick={() => navigate(`/story-player/${history.id}`)}
                                     />
                                     <Badge>
@@ -287,7 +287,7 @@ function Home() {
                         <CreatedContainer key={story.id} onClick={() => handleMyStoryClick(story.id)}>
                                 {activeMyStoryId === story.id ? (
                                     <OptionCard
-                                        $imgUrl={story.img}
+                                        $imgUrl={story.img || '/icons/book1.svg'}
                                         onClick={e => e.stopPropagation()}
                                     >
                                         <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveMyStoryId(null); }}>×</CloseBtn>
@@ -298,7 +298,7 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img} />
+                                            <img src={story.img || '/icons/book1.svg'} />
                                         </BookWrapper>
                                     </>
                                 )}
@@ -328,7 +328,7 @@ function Home() {
                         <CreatedContainer key={story.id} onClick={() => handleRecommendedClick(story.id)}>
                             {activeRecommendedId === story.id ? (
                                     <OptionCard
-                                        $imgUrl={story.img}
+                                        $imgUrl={story.img || '/icons/book2.svg'}
                                         onClick={e => e.stopPropagation()}
                                     >
                                         <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveRecommendedId(null); }}>×</CloseBtn>
@@ -338,7 +338,7 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img} />
+                                            <img src={story.img || '/icons/book2.svg'} />
                                         </BookWrapper>
                                     </>
                                 )}
@@ -367,7 +367,7 @@ function Home() {
                         <CreatedContainer key={story.id} onClick={() => handleReWriteStoryClick(story.id)}>
                                 {activeReWriteStoryId === story.id ? (
                                     <OptionCard
-                                        $imgUrl={story.img}
+                                        $imgUrl={story.img || '/icons/book2.svg'}
                                         onClick={e => e.stopPropagation()}
                                     >
                                         <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveReWriteStoryId(null); }}>×</CloseBtn>
@@ -378,7 +378,7 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img} />
+                                            <img src={story.img || '/icons/book2.svg'} />
                                         </BookWrapper>
                                     </>
                                 )}

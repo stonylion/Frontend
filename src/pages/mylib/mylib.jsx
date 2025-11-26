@@ -151,7 +151,7 @@ createMylibraryRecord(1);
                 <BookCard key={book.id} onClick={() => handleCardClick(book.id)}>
                   {activeBookId === book.id ? (
                     <OptionCard
-                      $imgUrl={book.story.img}
+                      $imgUrl={book.story.img || '/icons/book2.svg'}
                       onClick={e => e.stopPropagation()}
                     >
                       <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveBookId(null); }}>×</CloseBtn>
@@ -162,7 +162,7 @@ createMylibraryRecord(1);
                   ) : (
                     <>
                     <BookWrapper>
-                      <BookImg src={book.story.img} />
+                      <BookImg src={book.story.img || '/icons/book2.svg'} />
                       <Badge>
                       <img
                         src={
@@ -413,7 +413,7 @@ const BookImg = styled.div`
   height: 154px;
   border-radius: 12px;
   border: 0.5px solid #DEDEDE;
-  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+  background: url(${props => props.$imgUrl || '/icons/book2.svg'}) center/cover no-repeat;
 `
 
 const Empty = styled.div`

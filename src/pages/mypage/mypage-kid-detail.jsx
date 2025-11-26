@@ -207,7 +207,7 @@ const [badStories, setBadStories] = useState([
                     <span>결과예요</span>
                 </ResultLabel>
                 <Pentagon>
-                    <img src='/imges/pentagon.svg' />
+                    <img src='/imges/pentagon1.svg' />
                 </Pentagon>
                 <AnalysisComent>AI가 아이의 대화 내용을 분석해 산출한 참고용 결과로,<br />보다 정확한 성격 검사를 원할 시, 정식 검사를 권장드립니다.</AnalysisComent>
                 <DetailLabel>
@@ -221,7 +221,7 @@ const [badStories, setBadStories] = useState([
 
                 {showNEODetail && (
                     <NEODetailContainer>
-                        <img src='/imges/data.svg' />
+                        <img src='/imges/data1.svg' />
                     </NEODetailContainer>
                 )}
                 <Line></Line>
@@ -865,7 +865,7 @@ const ConfirmBtn = styled.button`
 
 const NEODetailContainer = styled.div`
     display: flex;
-    padding: 16px;
+    width: 358px;
     flex-direction: column;
     align-items: flex-start;
     gap: 64px;
