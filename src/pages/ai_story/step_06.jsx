@@ -10,10 +10,12 @@ function Storystep06() {
   const timer = setTimeout(async () => {
     try {
       const res = await api.post("/api/story/generate/");
+      console.log("동화 생성 완료:", res.data);
       navigate("/mystory/ai_story/step07", {
         state: {
           title: res.data.title,
           content: res.data.content,
+          story_id: res.data.id,
         },
       });
     } catch (err) {

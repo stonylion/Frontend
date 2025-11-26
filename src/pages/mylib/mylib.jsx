@@ -2,13 +2,14 @@ import api from '../../api/axios';
 import styled from 'styled-components';
 import BottomBar from '../../components/Bottom';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function Mylib() {
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [activeBookId, setActiveBookId] = useState(null);
-    const [filter, setFilter] = useState('전체');
+    const [filter, setFilter] = useState(location.state?.initialFilter || '전체');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [books, setBooks] = useState([]);
     const [sortType, setSortType] = useState('recentView');
@@ -26,7 +27,7 @@ function Mylib() {
     };
 
     const playBook = async (book) => {
-        navigate(`/story-play/${book.story.id}`, { state: { book } });
+        navigate(`/story-play/${book.story.id}`);
     };
 
     const viewScript = async (book) => {

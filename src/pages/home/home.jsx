@@ -49,7 +49,9 @@ function Home() {
         setActiveReWriteStoryId(activeReWriteStoryId === id? null : id);
     };
 
-    const playBook = (story) => console.log('재생', story.title);
+    const playBook = (story) => {
+        navigate(`/story-player/${story.id}`);
+    };
     const viewScript = async (story) => {
         try {
             const response = await api.get(`/api/story/${story.id}/script/`);
@@ -65,12 +67,12 @@ function Home() {
         handleDelete();
     };
     const reWrite = (story) => {
-  navigate("/rewrite_end", {
-    state: {
-      storyId: story.id   //🍅 결말확장으로 이동
-    }
-  });
-};
+        navigate("/rewrite_end", {
+            state: {
+                storyId: story.id   //🍅 결말확장으로 이동
+            }
+        });
+    };
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -231,7 +233,11 @@ function Home() {
             <StoryContent>
                 <StoryLabel>
                     최근 본 히스토리
-                    <img src='/icons/right-part.svg' width={20} height={20} />
+                    <img
+                        src='/icons/right-part.svg'
+                        width={20} height={20}
+                        onClick={() => navigate('/mylib')}
+                    />
                 </StoryLabel>
                 
                 {recentHistory?.results?.length > 0 ? (
@@ -239,7 +245,10 @@ function Home() {
                         {recentHistory?.results?.map((history) => (
                             <HistoryContainer key={history.id}>
                                 <Card>
-                                    <img src={history.story?.img} />
+                                    <img
+                                        src={history.story?.img}
+                                        onClick={() => navigate(`/story-player/${history.id}`)}
+                                    />
                                     <Badge>
                                         <img
                                             src={categoryBadge[history.story.category]}
@@ -262,7 +271,11 @@ function Home() {
             <CreatedStoryContent>
                 <StoryLabel>
                     부모의 이야기를 아이에게
-                    <img src='/icons/right-part.svg' width={20} height={20} />
+                    <img
+                        src='/icons/right-part.svg'
+                        width={20} height={20}
+                        onClick={() => navigate('/mylib', { state: { initialFilter: "제작" } })}
+                    />
                 </StoryLabel>
 
                 {myStories.length === 0 ? (
@@ -303,7 +316,11 @@ function Home() {
             <CreatedStoryContent>
                 <StoryLabel>
                     추천 명작 동화
-                    <img src='/icons/right-part.svg' width={20} height={20} />
+                    <img
+                        src='/icons/right-part.svg'
+                        width={20} height={20}
+                        onClick={() => navigate('/mylib', { state: { initialFilter: '명작' } })}
+                    />
                 </StoryLabel>
                 <CreatedStoryScroll>
                     {recommendedStories.map((story) => (
@@ -334,7 +351,11 @@ function Home() {
             <CreatedStoryContent>
                 <StoryLabel>
                     우리 아이가 다시 쓴 명작 동화
-                    <img src='/icons/right-part.svg' width={20} height={20} />
+                    <img
+                        src='/icons/right-part.svg'
+                        width={20} height={20}
+                        onClick={() => navigate('mylib', { state: { initialFilter: '확장' } })}
+                    />
                 </StoryLabel>
 
                 {reWriteStories.length === 0 ? (

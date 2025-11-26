@@ -1,7 +1,7 @@
 import api from '../../api/axios';
 import styled from 'styled-components';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Button from '../../components/Button';
 import LoadingModal from '../../components/Loading';
 
@@ -23,7 +23,7 @@ function IllustLandscape() {
         try {
             await new Promise(resolve => setTimeout(resolve, 5000));
             setIsLoading(false);
-            navigate('/story-play');
+            navigate(`/story-play/${story_id}`);
         } catch (error) {
             console.error(error);
             setIsLoading(false);
@@ -45,20 +45,20 @@ function IllustLandscape() {
         }
         fetchPageData();
     }, [story_id]);
-/*
-    const redraw = async () => {
+
+    const redraw = async (img) => {
         try {
             const response = await api.post('/api/AI/illustration/regenerate/',
                 {
                     story_id: story_id,
-                    page: fetchedImages.page_number
+                    page: img.page_number
                 }
             );
         } catch (e) {
             console.error('다시 그리기 실패:', e);
         }
     };
-*/
+
     const download = async (img) => {
         try {
             const page_number = img.page_number;
@@ -89,7 +89,7 @@ function IllustLandscape() {
         <Wrapper>
         <Contents1>
             <SelectedImg onClick={() => handleImgClick(selectedImg?.id)}>
-                {selectedImg && <img src={selectedImg.illustrations[0]} />}
+                {selectedImg?.illustrations?.length > 0 && <img src={selectedImg.illustrations[0]} />}
                 {selectedImg && activeImgClick === selectedImg.id && (
                     <OptionCard
                         $imgUrl={selectedImg.illustrations[0]}

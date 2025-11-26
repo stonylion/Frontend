@@ -118,7 +118,7 @@ function App() {
             <Route path='/rewrite_end/step04' element={<PageWrapper orientation="portrait"><Endwritestep04/></PageWrapper>} />
 
             {/* 동화 플레이어 페이지 */}
-            <Route path='/story-player' element={<PageWrapper orientation="landscape"><StoryPlayer /></PageWrapper>} />
+            <Route path='/story-player/:story_id' element={<PageWrapper orientation="landscape"><StoryPlayer /></PageWrapper>} />
 
             {/* AI 스토리 생성 */}
             <Route path='/mystory/ai_story/step01' element={<PageWrapper orientation="portrait"><Storystep01/></PageWrapper>} />
