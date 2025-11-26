@@ -207,7 +207,11 @@ const [badStories, setBadStories] = useState([
                     <span>결과예요</span>
                 </ResultLabel>
                 <Pentagon>
+<<<<<<< HEAD
                     <img src='/imges/pentagon1.svg' />
+=======
+                    <img src='/imges/pentagon.svg' />
+>>>>>>> 88fee455265f23ce0b6e57647bbd22ad1a14a487
                 </Pentagon>
                 <AnalysisComent>AI가 아이의 대화 내용을 분석해 산출한 참고용 결과로,<br />보다 정확한 성격 검사를 원할 시, 정식 검사를 권장드립니다.</AnalysisComent>
                 <DetailLabel>

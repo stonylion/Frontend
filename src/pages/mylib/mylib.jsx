@@ -414,6 +414,7 @@ const BookImg = styled.div`
   border-radius: 12px;
   border: 0.5px solid #DEDEDE;
   background: url(${props => props.$imgUrl || '/icons/book2.svg'}) center/cover no-repeat;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
 `
 
 const Empty = styled.div`
