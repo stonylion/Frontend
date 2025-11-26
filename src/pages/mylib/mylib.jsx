@@ -161,12 +161,8 @@ createMylibraryRecord(1);
                   ) : (
                     <>
                     <BookWrapper>
-                      <img src={book.story.img} />
-                      <ProgressContainer>
-                        <ProgressFill style={{ width: `${book.last_viewed_page && book.story.page_count ? (book.last_viewed_page / book.story.page_count) * 100 : 0}%` }} />
-                      </ProgressContainer>
-                    </BookWrapper>
-                    <Badge>
+                      <BookImg src={book.story.img} />
+                      <Badge>
                       <img
                         src={
                           book.story.category === 'classic'
@@ -177,6 +173,10 @@ createMylibraryRecord(1);
                         }
                       />
                     </Badge>
+                      <ProgressContainer>
+                        <ProgressFill style={{ width: `${book.last_viewed_page && book.story.page_count ? (book.last_viewed_page / book.story.page_count) * 100 : 0}%` }} />
+                      </ProgressContainer>
+                    </BookWrapper>
                     </>
                   )}
                     <Title>{book.story.title}</Title>
@@ -325,6 +325,12 @@ const Title = styled.span`
   font-style: normal;
   font-weight: 700;
   margin-top: 10px;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  align-self: stretch;
+  color: #393939;
 `;
 
 const Badge = styled.div`
@@ -332,15 +338,13 @@ const Badge = styled.div`
     height: 26px;
     position: absolute;
     left: 76px;
-    bottom: 70px;
+    bottom: 22px;
     padding: 0;
     margin: 0;
 
     img {
         width: 37px;
         height: 26px;
-        object-fit: cover;
-        display: block;
     }
 `;
 
@@ -400,18 +404,16 @@ const BookWrapper = styled.div`
   position: relative;
   width: 110px;
   height: 154px;
+  background: white;
+`;
+
+const BookImg = styled.div`
+  width: 110px;
+  height: 154px;
   border-radius: 12px;
   border: 0.5px solid #DEDEDE;
   box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  background: white;
-  
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-`;
+`
 
 const Empty = styled.div`
   width: 358px;
