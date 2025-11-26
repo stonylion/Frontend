@@ -84,7 +84,7 @@ function KidRegister() {
                             key={index}
                             $isSelected={seledtedAvatar === src}
                             onClick={() => setSelectedAvatar(src)}
-                            aria-pressed= {setSelectedAvatar === src}
+                            aria-pressed= {seledtedAvatar === src}
                             aria-label={`아바타 ${index + 1}`}
                         >
                             <img src={src} />

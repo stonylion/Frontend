@@ -1,35 +1,29 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Button from '../../components/Button';
 import LoadingModal from '../../components/Loading';
 
 function IllustLandscape() {
     const navigate = useNavigate();
+    const { story_id } = useParams();
 
     const [isLoading, setIsLoading] = useState(false);
-
     const [selectedImg, SetSelectedImg] = useState(null);
-
     const [images, setImages] = useState([]);
-
     const [activeImgClick, setActiveImgClick] = useState(null);
 
-    const handleImgClick = (page) => {
-        setActiveImgClick(activeImgClick === page ? null : page);
+    const handleImgClick = (id) => {
+        setActiveImgClick(activeImgClick === id ? null : id);
     };
-
-    const redraw = () => console.log('다시 그리기');
-
-    const download = () => console.log('다운로드');
 
     const handleLoading = async () => {
         setIsLoading(true);
-
         try {
             await new Promise(resolve => setTimeout(resolve, 5000));
             setIsLoading(false);
-            navigate('/story-play');
+            navigate(`/story-play/${story_id}`);
         } catch (error) {
             console.error(error);
             setIsLoading(false);
@@ -37,28 +31,68 @@ function IllustLandscape() {
     };
 
     useEffect(() => {
-        const fetchedImages = [
-        { page: '페이지1', img: '/imges/illust-landscape.png', content: '옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요.옛날옛날에 여우와 두루미가 살았어요. 여우는 털이 북슬북슬하고 두루미는 아주 키가 컸어요슬하고 두루미는 아주 키가 컸어요 컸어요'},
-        { page: '페이지2', img: '/imges/illust-landscape-none.png'},
-        { page: '페이지3', img: '/imges/illust-landscape.png'},
-        { page: '페이지4', img: '/imges/illust-landscape.png'},
-        { page: '페이지5', img: '/imges/illust-landscape.png'},
-        ];
-        setImages(fetchedImages);
-
-        if (fetchedImages.length > 0) {
-            SetSelectedImg(fetchedImages[0]);
+        const fetchPageData = async () => {
+            try {
+                const response = await api.get(`/api/story/${story_id}/pages/`);
+                const fetchedImages = response.data;
+                setImages(fetchedImages);
+                if (fetchedImages.length > 0)
+                    SetSelectedImg(fetchedImages[0]);
+                console.log('페이지별 텍스트 및 삽화 조회 성공:', response.data);
+            } catch (e) {
+                console.error('페이지별 텍스트 및 삽화 조회 실패:', e);
+            }
         }
-    }, []);
+        fetchPageData();
+    }, [story_id]);
+
+    const redraw = async (img) => {
+        try {
+            const response = await api.post('/api/AI/illustration/regenerate/',
+                {
+                    story_id: story_id,
+                    page: img.page_number
+                }
+            );
+        } catch (e) {
+            console.error('다시 그리기 실패:', e);
+        }
+    };
+
+    const download = async (img) => {
+        try {
+            const page_number = img.page_number;
+            const response = await api.get(`/api/story/illustration/download/${story_id}/${page_number}`);
+            const downloadUrl = response.data.download_url;
+
+            const link = document.createElement(`a`);
+            link.href = downloadUrl;
+            link.download = `story_${story_id}_page_${page_number}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (e) {
+            console.error('삽화 다운로드 실패:',e);
+        }
+    };
+
+    const handleVoice = async () => {
+        try {
+            const response = await api.get('/api/story/voice/tts/');
+            console.log("tts 재생 성공:", response.data);
+        } catch (e) {
+            console.error('tts 재생 실패:', e);
+        }
+    };
 
     return (
         <Wrapper>
         <Contents1>
-            <SelectedImg onClick={() => handleImgClick(selectedImg?.page)}>
-                {selectedImg && <img src={selectedImg.img} />}
-                {selectedImg && activeImgClick === selectedImg.page && (
+            <SelectedImg onClick={() => handleImgClick(selectedImg?.id)}>
+                {selectedImg?.illustrations?.length > 0 && <img src={selectedImg.illustrations[0]} />}
+                {selectedImg && activeImgClick === selectedImg.id && (
                     <OptionCard
-                        $imgUrl={selectedImg.img}
+                        $imgUrl={selectedImg.illustrations[0]}
                         onClick={e => e.stopPropagation()}
                     >
                         <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveImgClick(null); }}>×</CloseBtn>
@@ -68,24 +102,25 @@ function IllustLandscape() {
                 )}
             </SelectedImg>
             <ImgList>
-                {images.map((img, idx) => (
+                {images.map((img) => (
                     <ImgItem
-                        key={idx}
+                        key={img.id}
                         onClick={() => SetSelectedImg(img)}
-                        $selected={selectedImg === img}
+                        $selected={selectedImg?.id === img.id}
                     >
-                        <img src={img.img} />
+                        <img src={img.illustrations[0]} />
                     </ImgItem>
                 ))}
             </ImgList>
         </Contents1>
         <Contents2>
-            <PageLabel>{selectedImg?.page}</PageLabel>
+            <PageLabel>{selectedImg?.page_number}</PageLabel>
             <PageContent>
-                <ContentContainer>{selectedImg?.content}</ContentContainer>
+                <ContentContainer>{selectedImg?.text}</ContentContainer>
                 <img
                     style={{ cursor: 'pointer' }}
                     src='/icons/sound.svg'
+                    onClick={handleVoice}
                 />
             </PageContent>
             <BtnContainer>

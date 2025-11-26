@@ -6,8 +6,8 @@ import GlobalStyle from './components/GlobalStyle.jsx';
 import Button from './components/Button.jsx';
 import Header from './components/Header.jsx';
 import BottomBar from './components/Bottom.jsx';
-
-//공통 컴포넌트 확인용
+import Pentagon from './pages/mypage/pentagon.jsx';
+//페이지 임포트
 import OnboardingIntro from './pages/onboarding/main.jsx'; //온보딩 첫 화면
 import OnboardingStep01 from './pages/onboarding/step_01.jsx'; // 온보딩 두번째
 import OnboardingStep02 from './pages/onboarding/step_02.jsx'; // 온보딩 세번째
@@ -104,11 +104,11 @@ function App() {
             <Route path='/mypage-kid-register' element={<PageWrapper orientation="portrait"><KidRegister /></PageWrapper>} />
             <Route path='/mypage-support/:type' element={<PageWrapper orientation="portrait"><MypageSupport /></PageWrapper>} />
             <Route path='/mypage-kid-detail/:child_id' element={<PageWrapper orientation="portrait"><MypageKidDetail /></PageWrapper>} />
-
+            <Route path='/pentagon' element={<PageWrapper orientation="portrait"><Pentagon /></PageWrapper>} />
             {/* 삽화 생성 페이지 */}
-            <Route path='/illust-portrait' element={<PageWrapper orientation="portrait"><IllustPortrait /></PageWrapper>} />
-            <Route path='/illust-landscape' element={<PageWrapper orientation="landscape"><IllustLandscape /></PageWrapper>} />
-            <Route path='/story-play' element={<PageWrapper orientation="landscape"><StoryPlay /></PageWrapper>} />
+            <Route path='/illust-portrait/:story_id' element={<PageWrapper orientation="portrait"><IllustPortrait /></PageWrapper>} />
+            <Route path='/illust-landscape/:story_id' element={<PageWrapper orientation="landscape"><IllustLandscape /></PageWrapper>} />
+            <Route path='/story-play/:story_id' element={<PageWrapper orientation="landscape"><StoryPlay /></PageWrapper>} />
 
             {/* 결말확장 */}
             <Route path='/rewrite_end' element={<PageWrapper orientation="portrait"><Endwritemain/></PageWrapper>} />
@@ -118,7 +118,7 @@ function App() {
             <Route path='/rewrite_end/step04' element={<PageWrapper orientation="portrait"><Endwritestep04/></PageWrapper>} />
 
             {/* 동화 플레이어 페이지 */}
-            <Route path='/story-player' element={<PageWrapper orientation="landscape"><StoryPlayer /></PageWrapper>} />
+            <Route path='/story-player/:story_id' element={<PageWrapper orientation="landscape"><StoryPlayer /></PageWrapper>} />
 
             {/* AI 스토리 생성 */}
             <Route path='/mystory/ai_story/step01' element={<PageWrapper orientation="portrait"><Storystep01/></PageWrapper>} />

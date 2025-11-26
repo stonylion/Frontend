@@ -1,9 +1,10 @@
 import styled from 'styled-components';
 import Button from '../../components/Button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 function StoryPlay() {
     const navigate = useNavigate();
+    const { story_id } = useParams();
 
     return (
         <Wrapper>
@@ -13,7 +14,7 @@ function StoryPlay() {
                     <Button
                         $width='260px'
                         $height='48px'
-                        onClick={() => navigate('/story-player')}
+                        onClick={() => navigate(`/story-player/${story_id}`)}
                     >
                         바로 재생
                     </Button>
@@ -21,7 +22,7 @@ function StoryPlay() {
                         $width='260px'
                         $height='48px'
                         $bgColor='#342e29'
-                        onClick={() => {navigate('/mystory')}}
+                        onClick={() => {navigate('/mylib', { state: { initialFilter: '제작' } })}}
                     >
                         종료하기
                     </Button>

@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import Button from '../../components/Button';
 
