@@ -7,8 +7,8 @@ import api from "../../api/axios.js";
 
 // 서버 voice_image_code → 실제 아바타 이미지 매핑
 const voiceImageMap = {
-  voice1: "/img/onboarding/Avatar_1.svg", // 강아지
-  voice2: "/img/onboarding/Avatar_2.svg", // 고슴도치
+  voice1: "/img/onboarding/Avatar.svg", // 강아지
+  voice2: "/img/onboarding/Avatar_1.svg", // 고슴도치
   voice3: "/img/onboarding/Avatar_3.svg", // 고양이
   voice4: "/img/onboarding/Avatar_4.svg", // 외계인
 };

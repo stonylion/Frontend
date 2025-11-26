@@ -18,18 +18,20 @@ const Storystep02 = () => {
   const [status, setStatus] = useState("idle");
   const [showQuitModal, setShowQuitModal] = useState(false);
 
-  // STT 관련 상태
-  const [draftText, setDraftText] = useState(""); // 화면에 띄울 STT 결과
+  // STT 상태 — 핵심 수정
+  const [fullDraftText, setFullDraftText] = useState(""); // 전체 누적 저장
+  const [viewDraftText, setViewDraftText] = useState(""); // 79자 제한 
   const [wsConnected, setWsConnected] = useState(false);
 
-  // ref들
+  // refs
   const wsRef = useRef(null);
   const mediaRecorderRef = useRef(null);
 
+//웹소켓 연결
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) {
-      console.warn("⚠ access_token이 없어 STT WebSocket을 연결하지 못함");
+      console.warn("⚠ access_token 없음");
       return;
     }
 
@@ -38,7 +40,7 @@ const Storystep02 = () => {
     socket.binaryType = "arraybuffer";
 
     socket.onopen = () => {
-      console.log("🟢 STT WebSocket 연결 성공");
+      console.log("🟢 WebSocket 연결 성공");
       setWsConnected(true);
     };
 
@@ -51,20 +53,14 @@ const Storystep02 = () => {
         return;
       }
 
-      console.log("📨 STT 서버 메시지:", data);
+      console.log("📨 서버 메시지:", data);
 
-      // 서버에서 보내주는 형식:
-      // { "type": "transcription", "text": "..." }
       if (data.type === "transcription" && data.text) {
-        setDraftText((prev) => {
+        setFullDraftText((prev) => {
           const combined = (prev ? prev + " " + data.text : data.text).trim();
-          // 공백 포함 최대 79자
-          return combined.slice(0, 79);
+          setViewDraftText(combined.slice(0, 79)); // 화면용 79자
+          return combined; // 전체 저장
         });
-      }
-
-      if (data.status) {
-        console.log("STT status:", data.status);
       }
 
       if (data.error || data.error_message) {
@@ -73,25 +69,23 @@ const Storystep02 = () => {
     };
 
     socket.onerror = (err) => {
-      console.error("❌ WebSocket 에러:", err);
+      console.error("⚠️ WebSocket Error:", err);
       setWsConnected(false);
     };
 
     socket.onclose = () => {
-      console.log("🔴 WebSocket 종료됨");
+      console.log("🔴 WebSocket 종료");
       setWsConnected(false);
     };
 
     wsRef.current = socket;
-
-    return () => {
-      socket.close();
-    };
+    return () => socket.close();
   }, []);
+
 
   const startRecording = async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      console.warn("⚠ WebSocket이 열려있지 않아서 녹음을 시작할 수 없음");
+      console.warn("⚠️ WebSocket 닫힘");
       return;
     }
 
@@ -115,20 +109,20 @@ const Storystep02 = () => {
         }
       };
 
-      mediaRecorder.start(300); // 300ms 단위로 chunk 전송
+      mediaRecorder.start(300);
       console.log("🎙️ 녹음 시작");
     } catch (e) {
-      console.error("마이크 권한 / 녹음 시작 실패:", e);
+      console.error("⚠️ 녹음 시작 실패:", e);
     }
   };
+
 
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-      // 마이크 스트림 정리
       mediaRecorderRef.current.stream
         .getTracks()
-        .forEach((track) => track.stop());
+        .forEach((t) => t.stop());
       mediaRecorderRef.current = null;
     }
 
@@ -141,53 +135,44 @@ const Storystep02 = () => {
 
   const handleMicClick = () => {
     if (status === "idle") {
-      // idle → recording
       startRecording();
       setStatus("recording");
     } else if (status === "recording") {
-      // recording → select
       stopRecording();
       setStatus("select");
     }
   };
 
+  // 다시 녹음
   const handleAgain = () => {
-    // 다시 녹음하기: 상태 idle로, 텍스트 초기화
     stopRecording();
-    setDraftText("");
+    setFullDraftText("");
+    setViewDraftText("");
     setStatus("idle");
   };
 
+  // 완료
   const handleDone = () => {
-    // TODO: 여기서 draftText를 다음 스텝으로 넘길 수 있음
     navigate("/mystory/ai_story/step04", {
-      state: { draftText },
+      state: { draftText: fullDraftText }, 
     });
   };
 
+//txt 랜더링
   const renderArcTexts = () => {
-    // 녹음 중 or 완료 상태에서 STT 텍스트가 있다면 그걸 우선 표시
-    if ((status === "recording" || status === "select") && draftText.trim()) {
-      return <ArcText>{draftText}</ArcText>;
+    if ((status === "recording" || status === "select") && viewDraftText) {
+      return <ArcText>{viewDraftText}</ArcText>;
     }
 
     if (status === "recording") {
-      return (
-        <ArcText>버튼을 눌러 말하기를 멈출 수 있어요.</ArcText>
-      );
+      return <ArcText>버튼을 눌러 말하기를 멈출 수 있어요.</ArcText>;
     }
 
     if (status === "select") {
-      // STT 텍스트가 없는 select 상태라면…
-      return (
-        <ArcText>에피소드 음성 입력이 완료되었어요.</ArcText>
-      );
+      return <ArcText>에피소드 음성 입력이 완료되었어요.</ArcText>;
     }
 
-    // 기본 idle 문구
-    return (
-      <ArcText>조용한 곳에서 또박또박 말씀해주세요.</ArcText>
-    );
+    return <ArcText>조용한 곳에서 또박또박 말씀해주세요.</ArcText>;
   };
 
   const statusIcon = status === "idle" ? ICON_RECORD : ICON_PAUSE;
@@ -221,7 +206,6 @@ const Storystep02 = () => {
         </SubTextRow>
       </Content>
 
-      {/* 반원 영역 */}
       <ArcArea>
         <Arc />
 
@@ -229,24 +213,23 @@ const Storystep02 = () => {
 
         {(status === "idle" || status === "recording") && (
           <MicButton onClick={handleMicClick}>
-            <img src={statusIcon} alt="mic" width="64" height="64" />
+            <img src={statusIcon} width="64" alt="mic" />
           </MicButton>
         )}
 
         {status === "select" && (
           <ControlRow>
             <ControlBtn onClick={handleAgain}>
-              <img src={ICON_AGAIN} alt="again" width="64" height="64" />
+              <img src={ICON_AGAIN} width="64" alt="again" />
             </ControlBtn>
 
-            {/* 아직 기능 없음: 디자인만 유지 */}
             <ControlBtnDisabled>
               <div className="bg" />
-              <img src={ICON_CLEAR} alt="clear" width="64" height="64" />
+              <img src={ICON_CLEAR} width="64" alt="clear" />
             </ControlBtnDisabled>
 
             <ControlBtn onClick={handleDone}>
-              <img src={ICON_DONE} alt="done" width="64" height="64" />
+              <img src={ICON_DONE} width="64" alt="done" />
             </ControlBtn>
           </ControlRow>
         )}
@@ -387,18 +370,11 @@ const ControlRow = styled.div`
   gap: 40px;
 `;
 
-const SmallMicBtn = styled(MicButton)`
-  position: static;
-  transform: none;
-  bottom: auto;
-  left: auto;
-`;
-
-const ControlBtn = styled(SmallMicBtn)`
+const ControlBtn = styled(MicButton)`
   cursor: pointer;
 `;
 
-const ControlBtnDisabled = styled(SmallMicBtn)`
+const ControlBtnDisabled = styled(MicButton)`
   position: relative;
   width: 64px;
   height: 64px;

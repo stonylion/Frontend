@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import Button from '../../components/Button';
 
@@ -39,7 +39,7 @@ const CustomEnding = ({ navigate, handleReplay, vote, setVote }) => (
     </EndingOverlay>
 );
 
-const ClassicEnding = ({ navigate, handleReplay }) => (
+const ClassicEnding = ({ navigate, handleReplay, storyId, storyTitle }) => (
     <EndingOverlay>
         <TopBar>
             <LeftGroup onClick={(e) => e.stopPropagation()}>
@@ -47,20 +47,37 @@ const ClassicEnding = ({ navigate, handleReplay }) => (
                     src='/icons/Leftpart-white.svg'
                     onClick={() => navigate('/mylib')}
                 />
-                <Title>동화 제목을 입력해주세요</Title>
+                <Title>{storyTitle}</Title>
             </LeftGroup>
         </TopBar>
+
+        {/* 🍅 결말 확장하기 버튼: endwrite로 이동 + storyId, storyTitle 전달 */}
         <ExtendButton
-            style={{ position: 'absolute', left: '246px', top: '150px', backgroundColor: '#FFD342' }}
+            style={{
+                position: 'absolute',
+                left: '246px',
+                top: '150px',
+                backgroundColor: '#FFD342'
+            }}
+            onClick={() =>
+                navigate('/rewrite_end/main', {
+                    state: {
+                        storyId,
+                        storyTitle
+                    }
+                })
+            }
         >
             결말 확장하기
         </ExtendButton>
+
         <EndingButton
             style={{ position: 'absolute', left: '246px', top: '206px' }}
             onClick={() => navigate('/mylib')}
         >
             나가기
         </EndingButton>
+
         <ReturnButton
             style={{ position: 'absolute', left: '328px', bottom: '97px' }}
             onClick={handleReplay}
@@ -100,6 +117,14 @@ const ExtendedEnding = ({ navigate, handleReplay }) => (
 
 function StoryPlayer() {
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // 🍅 Mylib에서 넘겨준 값 받기: navigate(`/story-play/${book.story.id}`, { state: { book } }); (결말 확장에서 필요)
+    const book = location.state?.book;
+
+    const storyId = book?.story?.id;
+    const storyTitle = book?.story?.title || '동화 제목을 입력해주세요';
+    const storyCategory = book?.story?.category || 'custom';
 
     const pages = [
         { img: '/imges/illust-landscape.png', page: '1페이지', type: '자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다. 자막 영' },
@@ -114,7 +139,7 @@ function StoryPlayer() {
         { avatar: '/icons/avatar3.svg', name: '목소리1' },
         { avatar: '/icons/avatar1.svg', name: '목소리2' },
         { avatar: '/icons/avatar5.svg', name: '성우 목소리1' },
-    ]
+    ];
 
     const [selectedImg, setSelectedImg] = useState(0);
     const [selectedVoice, setSelectedVoice] = useState(0);
@@ -123,21 +148,23 @@ function StoryPlayer() {
     const [typeOn, setTypeOn] = useState(false);
     const [playOn, setPlayOn] = useState(false);
     const [voiceModal, setVoiceModal] = useState(false);
-    const [endingType, setEndingType] = useState(null);
-    //extended(확장), classic(명작), custom(제작)
+    const [endingType, setEndingType] = useState(null); 
     const [showEndingOverlay, setShowEndingOverlay] = useState(false);
     const [vote, setVote] = useState(null);
     const isLastPage = selectedImg === pages.length - 1;
 
+    // 🍅 Mylib에서 온 story.category 기준으로 endingType 설정: 결말 확장에서 필요
     useEffect(() => {
-        setEndingType("custom");
-    }, []);
+        if (storyCategory) {
+            setEndingType(storyCategory); // 'classic' | 'custom' | 'extended'
+        }
+    }, [storyCategory]);
 
     useEffect(() => {
         setShowEndingOverlay(false);
     }, [selectedImg]);
 
-    //더블탭 감지
+    // 더블탭 감지
     const lastTap = useRef(0);
     const handleTap = (e) => {
         const currentTime = new Date().getTime();
@@ -170,7 +197,7 @@ function StoryPlayer() {
     };
 
     const maxSubtitle = (text) => {
-        if (!text) return "";
+        if (!text) return '';
         let result = '';
         for (let i = 0; i < text.length; i += 70) {
             result += text.slice(i, i + 70) + '\n';
@@ -191,26 +218,6 @@ function StoryPlayer() {
         }
     };
 
-    const renderEndingOverlay = () => {
-        if (!isLastPage || !showEndingOverlay) return null;
-
-        switch (endingType) {
-            case 'custom':
-                return <CustomEnding
-                            navigate={navigate}
-                            handleReplay={handleReplay}
-                            vote={vote}
-                            setVote={setVote}
-                        />;
-            case 'classic':
-                return <ClassicEnding navigate={navigate} handleReplay={handleReplay} />;
-            case 'extended':
-                return <ExtendedEnding navigate={navigate} handleReplay={handleReplay} />;
-            default:
-                return null; 
-        }
-    };
-
     const handleReplay = () => {
         setSelectedImg(0);
         setStep(2);
@@ -218,6 +225,35 @@ function StoryPlayer() {
         setShowEndingOverlay(false);
         setTypeOn(false);
         setPlayOn(false);
+    };
+
+    const renderEndingOverlay = () => {
+        if (!isLastPage || !showEndingOverlay) return null;
+
+        switch (endingType) {
+            case 'custom':
+                return (
+                    <CustomEnding
+                        navigate={navigate}
+                        handleReplay={handleReplay}
+                        vote={vote}
+                        setVote={setVote}
+                    />
+                );
+            case 'classic':
+                return (
+                    <ClassicEnding
+                        navigate={navigate}
+                        handleReplay={handleReplay}
+                        storyId={storyId}
+                        storyTitle={storyTitle}
+                    />
+                );
+            case 'extended':
+                return <ExtendedEnding navigate={navigate} handleReplay={handleReplay} />;
+            default:
+                return null;
+        }
     };
 
     return (
@@ -229,7 +265,6 @@ function StoryPlayer() {
                     <TypeContainer>
                         <Type>{maxSubtitle(pages[selectedImg].type)}</Type>
                     </TypeContainer>
-
                 )}
             </StoryImg>
 
@@ -269,7 +304,7 @@ function StoryPlayer() {
                                     src={typeOn ? '/icons/type-off.svg' : '/icons/type-on.svg'}
                                     width={24}
                                 />
-                                {typeOn ? "자막끄기" : "자막켜기"}
+                                {typeOn ? '자막끄기' : '자막켜기'}
                             </BtnContainer>
                             <BtnContainer onClick={voiceClick}>
                                 <img src='/icons/sound-white.svg' width={24} />
@@ -346,7 +381,7 @@ function StoryPlayer() {
                                 $width="272px"
                                 $height="40px"
                                 $bgColor="#393939"
-                                onClick={() => { setVoiceModal(false) }}
+                                onClick={() => { setVoiceModal(false); }}
                             >
                                 확인
                             </Button>
@@ -367,7 +402,7 @@ const Wrapper = styled.div`
     position: relative;
     background-color: black;
     overflow: hidden;
-`
+`;
 
 const StoryImg = styled.div`
     width: 694px;
@@ -382,7 +417,7 @@ const StoryImg = styled.div`
         display: block;
         border-radius: 0;
     }
-`
+`;
 
 const Overlay = styled.div`
     position: absolute;
@@ -398,13 +433,13 @@ const Overlay = styled.div`
     z-index: 100;
     align-items: center;
     cursor: pointer;
-`
+`;
 
 const Text = styled.div`
     display: flex;
     flex-direction: row;
     align-items: center;
-`
+`;
 
 const Text01 = styled.div`
     position: absolute;
@@ -414,7 +449,7 @@ const Text01 = styled.div`
     height: 24px;
     justify-content: space-around;
     align-items: center;
-`
+`;
 
 const Text02 = styled.div`
     position: absolute;
@@ -424,7 +459,7 @@ const Text02 = styled.div`
     height: 24px;
     justify-content: space-around;
     align-items: center;
-`
+`;
 
 const TopBar = styled.div`
     width: 774px;
@@ -436,18 +471,18 @@ const TopBar = styled.div`
     display: flex;
     align-items: center;
     justify-content: space-between;
-`
+`;
 
 const LeftGroup = styled.div`
     display: flex;
     align-items: center;
     gap: 8px;
-`
+`;
 
 const RightButtons = styled.div`
     display: flex;
     gap: 8px;
-`
+`;
 
 const Title = styled.div`
     margin-left: 4px;
@@ -460,7 +495,7 @@ const Title = styled.div`
     padding: 0 8px;
     display: flex;
     align-items: center;
-`
+`;
 
 const BtnContainer = styled.div`
     width: 111px;
@@ -472,7 +507,7 @@ const BtnContainer = styled.div`
     font-size: 14px;
     font-weight: 800px;
     align-items: center;
-`
+`;
 
 const PlayBtn = styled.div`
     width: 40px;
@@ -480,7 +515,7 @@ const PlayBtn = styled.div`
     position: absolute;
     top: 126px;
     right: 402px;
-`
+`;
 
 const PageContainer = styled.div`
     height: 148px;
@@ -491,7 +526,7 @@ const PageContainer = styled.div`
     gap: 15px;
     position: absolute;
     bottom: 32px;
-`
+`;
 
 const PageTitle = styled.div`
     color: #fff;
@@ -499,11 +534,11 @@ const PageTitle = styled.div`
     font-weight: 800;
     display: flex;
     gap: 4px;
-`
+`;
 
 const Count = styled.div`
     color: #ffd342;
-`
+`;
 
 const Scroll = styled.div`
     width: 784px;
@@ -513,7 +548,7 @@ const Scroll = styled.div`
     overflow-x: auto;
     scrollbar-width: none;
     padding-right: 16px;
-`
+`;
 
 const Page = styled.div`
     width: 120px;
@@ -522,7 +557,7 @@ const Page = styled.div`
     display: flex;
     flex-direction: column;
     gap: 4px;
-`
+`;
 
 const PageImg = styled.div`
     width: 120px;
@@ -536,7 +571,7 @@ const PageImg = styled.div`
         height: 100%;
         object-fit: cover;
     }
-`
+`;
 
 const PageNum = styled.div`
     width: 120px;
@@ -546,8 +581,8 @@ const PageNum = styled.div`
     justify-content: center;
     font-size: 12px;
     font-weight: 800;
-    color: ${({ $isSelected }) => ($isSelected) ? '#ffd342' : '#fff'};
-`
+    color: ${({ $isSelected }) => ($isSelected ? '#ffd342' : '#fff')};
+`;
 
 const TypeContainer = styled.div`
     position: absolute;
@@ -558,27 +593,27 @@ const TypeContainer = styled.div`
     justify-content: center;
     align-items: center;
     padding: 16px;
-`
+`;
 
 const Type = styled.div`
-padding: 8px 16px;
-max-width: calc(694px - 32px);
+    padding: 8px 16px;
+    max-width: calc(694px - 32px);
 
-background: rgba(0,0,0,0.6);
-border-radius: 8px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 8px;
 
-display: -webkit-box;
--webkit-box-orient: vertical;
--webkit-line-clamp: 2;
-overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
 
-color: #fff;
-font-size: 24px;
-font-weight: 800;
-line-height: 32px;
-text-align: center;
-text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-`
+    color: #fff;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 32px;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+`;
 
 const VoiceModal = styled.div`
     height: 326px;
@@ -594,7 +629,7 @@ const VoiceModal = styled.div`
     top: 32px;
     right: 262px;
     justify-content: space-between;
-`
+`;
 
 const VoiceContainer = styled.div`
     width: 275px;
@@ -603,7 +638,7 @@ const VoiceContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 16px;
-`
+`;
 
 const VoiceSelect = styled.div`
     width: 275px;
@@ -611,7 +646,7 @@ const VoiceSelect = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-`
+`;
 
 const LeftVoice = styled.div`
     display: flex;
@@ -620,7 +655,7 @@ const LeftVoice = styled.div`
     font-size: 16px;
     font-weight: 700;
     align-items: center;
-`
+`;
 
 const Img = styled.div`
     width: 44px;
@@ -635,7 +670,7 @@ const Img = styled.div`
         border:  ${({ $isSelected }) => $isSelected ? '1.5px solid transparent' : '1.5px solid #f1f1f1'};
         object-fit: cover;
     }
-`
+`;
 
 const RightVoice = styled.div`
     width: 20px;
@@ -643,7 +678,7 @@ const RightVoice = styled.div`
     display: flex;
     gap: 12px;
     align-items: center;
-`
+`;
 
 const EndingOverlay = styled.div`
     position: absolute;
@@ -660,7 +695,7 @@ const EndingOverlay = styled.div`
     & > * {
         pointer-events: auto;
     }
-`
+`;
 
 const ExtendButton = styled.button`
     width: 260px;
@@ -671,7 +706,7 @@ const ExtendButton = styled.button`
     font-weight: 800;
     border: none;
     cursor: pointer;
-`
+`;
 
 const EndingButton = styled.button`
     width: 260px;
@@ -683,7 +718,7 @@ const EndingButton = styled.button`
     font-weight: 800;
     border: none;
     cursor: pointer;
-`
+`;
 
 const ReturnButton = styled.div`
     width: 91px;
@@ -697,7 +732,7 @@ const ReturnButton = styled.div`
     align-items: center;
     text-align: center;
     cursor: pointer;
-`
+`;
 
 const CustomTitle = styled.div`
     width: 276px;
@@ -712,7 +747,7 @@ const CustomTitle = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-`
+`;
 
 const VoteContainer = styled.div`
     width: 388px;
@@ -722,7 +757,7 @@ const VoteContainer = styled.div`
     position: absolute;
     left: 182px;
     top: 114px;
-`
+`;
 
 const Good = styled.button`
     width: 144px;
@@ -732,7 +767,7 @@ const Good = styled.button`
     gap: 6px;
     border: none;
     background: none;
-`
+`;
 
 const Bad = styled.button`
     width: 144px;
@@ -742,4 +777,4 @@ const Bad = styled.button`
     gap: 6px;
     border: none;
     background: none;
-`
+`;

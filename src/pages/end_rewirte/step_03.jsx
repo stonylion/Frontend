@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled, { keyframes, css } from "styled-components";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
+import api from "../../api/axios.js";
 
 const PROFILE = "/img/end_rewrite/profile.svg";
 const RECORD = "/img/end_rewrite/yellow_rec.svg";
@@ -10,90 +11,189 @@ const CLOSE_ICON = "/icons/new_right_part.svg";
 
 const Endwritestep03 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [messages, setMessages] = useState([
-    { sender: "bot", text: "신데렐라 동화에서 가장 좋아했던 캐릭터가 뭐야?" },
-  ]);
+  const storyId = location.state?.storyId;
+  const chatIdFromVoice = location.state?.chatId || null;
+  const questionFromVoice = location.state?.question || "";
 
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
-  const [open, setOpen] = useState(false); // 닫기 모달
-  const [loading, setLoading] = useState(false); // 로딩 모달
-  const [stepCount, setStepCount] = useState(0); // 왕복 횟수
+  const [chatId, setChatId] = useState(chatIdFromVoice);
+  const [canFinalize, setCanFinalize] = useState(false);
+
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef(null);
 
-  // 자동 스크롤
+  // storyId 없으면 홈으로
+  useEffect(() => {
+    if (!storyId) navigate("/rewrite_end/");
+  }, [storyId, navigate]);
+
+  // 초기 bot 질문
+  useEffect(() => {
+    setMessages([
+      {
+        sender: "bot",
+        text: questionFromVoice || "질문을 불러오고 있어요…",
+        can_finalize: false,
+      },
+    ]);
+  }, [questionFromVoice]);
+
+  // 항상 스크롤 아래로
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 메시지 전송
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
+    if (!inputValue.trim()) return;
 
-    if (!isFocused) {
-      navigate("/rewrite_end/step02");
-      return;
-    }
-
-    if (inputValue.trim() === "") return;
-
-    // 사용자 메시지 추가
-    const userMsg = { sender: "user", text: inputValue };
-    setMessages((prev) => [...prev, userMsg]);
+    const userMsg = inputValue.trim();
     setInputValue("");
 
-    const nextStep = stepCount + 1;
-    setStepCount(nextStep);
+    // user 메시지 push
+    setMessages((prev) => [...prev, { sender: "user", text: userMsg }]);
 
-    // 더미 챗봇 응답
-    setTimeout(() => {
-      const botReply =
-        nextStep >= 3
-          ? { sender: "bot", text: "이제 결말을 확장해도 될까?" }
-          : { sender: "bot", text: "그렇구나! 신데렐라 이야기 정말 다양하게 해석할 수 있지!" };
+    try {
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/stream/`,
+        {
+          chat_id: chatId || chatIdFromVoice || "",
+          user_message: userMsg,
+          input_modality: "text",
+        }
+      );
 
-      setMessages((prev) => [...prev, botReply]);
-    }, 900);
+      const { text: botReply, chat_id: newChatId, can_finalize } = res.data;
+
+      setChatId(newChatId);
+
+      // 결말 확장 문구 자동 감지
+      const isEndingPrompt =
+        botReply?.includes("결말") ||
+        botReply?.includes("엔딩") ||
+        botReply?.includes("확장해도") ||
+        botReply?.includes("완성해도") ||
+        botReply?.includes("마무리") ||
+        botReply?.includes("엔딩으로");
+
+      const finalFlag = can_finalize || isEndingPrompt;
+      setCanFinalize(finalFlag);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: botReply,
+          can_finalize: finalFlag,
+        },
+      ]);
+    } catch (err) {
+      console.error("❌ 채팅 실패:", err);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: "오류가 발생했어요.", can_finalize: false },
+      ]);
+    }
   };
 
-  // 결말 확장하기
-  const handleExpandEnding = () => {
+
+  const handleContinueChat = async () => {
+    const effectiveChatId = chatId || chatIdFromVoice;
+    if (!effectiveChatId) return;
+
+    try {
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/stream/`,
+        {
+          chat_id: effectiveChatId,
+          action: "continue",
+        }
+      );
+
+      const { text: botReply, chat_id: newChatId, can_finalize } = res.data;
+
+      setChatId(newChatId);
+
+      // 결말 유도 문구 감지
+      const isEndingPrompt =
+        botReply?.includes("결말") ||
+        botReply?.includes("엔딩") ||
+        botReply?.includes("확장해도") ||
+        botReply?.includes("완성해도") ||
+        botReply?.includes("마무리") ||
+        botReply?.includes("엔딩으로");
+
+      const finalFlag = can_finalize || isEndingPrompt;
+      setCanFinalize(finalFlag);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: botReply,
+          can_finalize: finalFlag,
+        },
+      ]);
+    } catch (err) {
+      console.error("❌ 더 대화하기 실패:", err);
+    }
+  };
+
+  const handleExpandEnding = async () => {
+    const effectiveChatId = chatId || chatIdFromVoice;
+    if (!effectiveChatId) return;
+
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
+        chat_id: effectiveChatId,
+      });
+
+      navigate("/rewrite_end/step04", {
+        state: {
+          storyId,
+          extendedStory: res.data.extended_story,
+        },
+      });
+    } catch (err) {
+      console.error("❌ 결말 확장 실패:", err);
+    } finally {
       setLoading(false);
-      navigate("/rewrite_end/step04");
-    }, 2000);
+    }
   };
 
   return (
     <Screen>
-      {/* 상단 헤더 */}
       <Header title="채팅" showBack={false} />
 
-      {/* 닫기 버튼 */}
       <CloseBtn onClick={() => setOpen(true)}>
         <img src={CLOSE_ICON} alt="닫기" />
       </CloseBtn>
 
-      {/* 닫기 모달 */}
+      {/* 종료 모달 */}
       {open && (
         <Dim onClick={() => setOpen(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
             <ModalTitle>앗! 그만두시겠어요?</ModalTitle>
             <ModalDesc>
-              아직 대화를 완성하기엔 대화가 조금 부족해요.
+              아직 대화를 완성하기엔 대화가 부족해요.
               <br />
-              그만하면 지금까지의 대화를 되돌릴 수 없어요.
+              나가면 지금까지의 대화를 되돌릴 수 없어요.
             </ModalDesc>
 
             <BtnRow>
               <ModalBtnGray onClick={() => navigate("/rewrite_end/")}>
                 나가기
               </ModalBtnGray>
+
               <ModalBtnYellow onClick={() => setOpen(false)}>
                 계속 대화하기
               </ModalBtnYellow>
@@ -102,7 +202,7 @@ const Endwritestep03 = () => {
         </Dim>
       )}
 
-      {/* 로딩 모달 */}
+      {/* 로딩 */}
       {loading && (
         <LoadingDim>
           <LoadingBox>
@@ -113,58 +213,54 @@ const Endwritestep03 = () => {
             <LoadingText>
               결말을 확장하고 있어요!
               <br />
-              조금만 기다려주세요
+              잠시만 기다려주세요
             </LoadingText>
           </LoadingBox>
         </LoadingDim>
       )}
 
-      {/* 채팅 영역 */}
+      {/* 채팅 UI */}
       <ChatContainer>
-        {messages.map((msg, idx) => (
-          <MessageRow key={idx} $isUser={msg.sender === "user"}>
-            {msg.sender === "bot" && (
-              <ProfileIcon src={PROFILE} alt="profile" />
-            )}
-            <MessageBubble $isUser={msg.sender === "user"}>
-              {msg.text}
-            </MessageBubble>
-          </MessageRow>
-        ))}
+        {messages.map((msg, idx) => {
+          const isLast = idx === messages.length - 1;
+          const isBot = msg.sender === "bot";
 
-        {/* 결말 확장하기 버튼 */}
-        {stepCount >= 3 && (
-          <ButtonWrapper>
-            <EndButton onClick={handleExpandEnding}>결말 확장하기</EndButton>
+          return (
+            <div key={idx}>
+              <MessageRow $isUser={msg.sender === "user"}>
+                {isBot && <ProfileIcon src={PROFILE} alt="bot" />}
+                <MessageBubble $isUser={msg.sender === "user"}>
+                  {msg.text}
+                </MessageBubble>
+              </MessageRow>
 
-            <EndButton
-              onClick={() =>
-                setMessages((prev) => [
-                  ...prev,
-                  { sender: "bot", text: "좋아! 조금 더 이야기해보자." },
-                ])
-              }
-            >
-              더 대화하기
-            </EndButton>
-          </ButtonWrapper>
-        )}
+              {isBot && isLast && msg.can_finalize && (
+                <ButtonWrapper>
+                  <EndButton onClick={handleExpandEnding}>
+                    결말 확장하기
+                  </EndButton>
+                  <EndButton onClick={handleContinueChat}>
+                    더 대화하기
+                  </EndButton>
+                </ButtonWrapper>
+              )}
+            </div>
+          );
+        })}
 
         <div ref={chatEndRef} />
       </ChatContainer>
 
-      {/* 인풋 바 */}
+      {/* 입력창 */}
       <InputBar onSubmit={handleSend}>
         <Input
-          type="text"
           placeholder="메시지를 입력해주세요"
           value={inputValue}
-          onFocus={() => setIsFocused(true)}
           onChange={(e) => setInputValue(e.target.value)}
+          onFocus={() => setIsFocused(true)}
         />
-
         <RecordBtn type="submit">
-          <img src={isFocused ? SEND : RECORD} alt="send / record" />
+          <img src={isFocused ? SEND : RECORD} alt="send" />
         </RecordBtn>
       </InputBar>
     </Screen>
@@ -172,7 +268,6 @@ const Endwritestep03 = () => {
 };
 
 export default Endwritestep03;
-
 
 const LoadingDim = styled.div`
   position: fixed;
@@ -234,7 +329,6 @@ const LoadingText = styled.p`
   color: #000;
 `;
 
-
 const Screen = styled.div`
   position: relative;
   display: flex;
@@ -265,17 +359,14 @@ const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 14px;
-
   &::-webkit-scrollbar {
     display: none;
   }
 `;
 
-
 const MessageRow = styled.div`
   display: flex;
   gap: 8px;
-
   ${({ $isUser }) =>
     $isUser &&
     css`
@@ -301,7 +392,6 @@ const MessageBubble = styled.div`
   line-height: 22px;
   white-space: pre-wrap;
   animation: ${appear} 0.25s ease-out both;
-
   ${({ $isUser }) =>
     $isUser
       ? css`
@@ -313,7 +403,6 @@ const MessageBubble = styled.div`
           color: #3a372f;
         `}
 `;
-
 
 const InputBar = styled.form`
   position: fixed;
@@ -333,7 +422,6 @@ const Input = styled.input`
   border: none;
   padding: 0 16px;
   background: #f5f5f5;
-
   &:focus {
     background: #eeeeee;
   }
@@ -344,18 +432,16 @@ const RecordBtn = styled.button`
   border: none;
   margin-left: 12px;
   cursor: pointer;
-
   img {
     width: 40px;
     height: 40px;
   }
 `;
 
-
 const ButtonWrapper = styled.div`
   display: flex;
   gap: 8px;
-  margin-top: 8px;
+  margin: 8px 0 0 40px;
 `;
 
 const EndButton = styled.button`
@@ -364,26 +450,25 @@ const EndButton = styled.button`
   padding: 0 16px;
   justify-content: center;
   align-items: center;
-  gap: 8px;
   border-radius: 999px;
   border: 1px solid #f1f1f1;
   background: #ffffff;
+  font-size: 13px;
   cursor: pointer;
 `;
 
 const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+  position: absolute;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background-color: rgba(0, 0, 0, 0.4);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 999;
 `;
-
 
 const Modal = styled.div`
   width: 320px;
@@ -391,14 +476,12 @@ const Modal = styled.div`
   padding: 24px 24px 16px 24px;
   background: #fff;
   border-radius: 16px;
-
   display: flex;
   flex-direction: column;
   gap: 22px;
   justify-content: center;
   align-items: center;
 `;
-
 
 const ModalTitle = styled.h3`
   font-size: 20px;
@@ -410,6 +493,7 @@ const ModalDesc = styled.p`
   font-size: 14px;
   line-height: 22px;
   margin-bottom: 16px;
+  text-align: center;
 `;
 
 const BtnRow = styled.div`
@@ -440,4 +524,3 @@ const ModalBtnYellow = styled.button`
   font-weight: 800;
   cursor: pointer;
 `;
-

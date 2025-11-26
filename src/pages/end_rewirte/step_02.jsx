@@ -1,36 +1,171 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled, { keyframes, css } from "styled-components";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
+import api from "../../api/axios.js";
 
 const CHARACTER = "/img/end_rewrite/lion.svg";
-const MUTE_ICON = "/img/end_rewrite/mute.svg";
+const MUTE_ICON = "/img/end_rewrite/microphone.svg";
 const CHAT_ICON = "/img/end_rewrite/chat.svg";
 const CLOSE_ICON = "/icons/new_right_part.svg";
 
 const Endwritestep02 = () => {
   const navigate = useNavigate();
-  const [isAnimating, setIsAnimating] = useState(true);
+  const location = useLocation();
 
-  const [open, setOpen] = useState(false);
+  const storyId = location.state?.storyId;
 
-  const handleMuteClick = () => setIsAnimating((prev) => !prev);
-  const handleChatClick = () => navigate("/rewrite_end/step03");
+  const [question, setQuestion] = useState("");
+  const [chatId, setChatId] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const [openExit, setOpenExit] = useState(false);
+  const [openEndingModal, setOpenEndingModal] = useState(false);
+
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordStartTime = useRef(null);
+
+  useEffect(() => {
+    if (!storyId) navigate("/rewrite_end/");
+  }, [storyId, navigate]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recordStartTime.current = Date.now();
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.start(400);
+
+      setIsRecording(true);
+      setIsAnimating(true);
+      console.log("🎙 녹음 시작");
+    } catch (err) {
+      console.error("❌ 마이크 권한 오류:", err);
+    }
+  };
+
+  const stopRecording = async (sendToServer = true) => {
+    const now = Date.now();
+    if (now - recordStartTime.current < 500) {
+      console.log("⏳ 최소 녹음시간 미달");
+      return;
+    }
+
+    const recorder = mediaRecorderRef.current;
+
+    if (recorder) {
+      try {
+        recorder.stop();
+        recorder.stream.getTracks().forEach((t) => t.stop());
+      } catch (err) {
+        console.error("❌ 녹음 종료 오류:", err);
+      }
+    }
+
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+    setIsAnimating(false);
+
+    if (sendToServer) await sendVoiceToAI();
+  };
+
+  const sendVoiceToAI = async () => {
+    if (!audioChunksRef.current.length) {
+      console.warn("⚠ 전송할 오디오 없음");
+      return;
+    }
+
+    const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+    const file = new File([blob], "voice.webm", { type: "audio/webm" });
+
+    const form = new FormData();
+    form.append("audio", file);
+    form.append("voice", "alloy");
+
+    if (chatId) form.append("chat_id", chatId);
+
+    try {
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/voice/`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      console.log("📩 Voice AI 질문 응답:", res.data);
+
+      setChatId(res.data.chat_id);
+      setQuestion(res.data.text);
+
+      const isEndingPrompt =
+        res.data.text?.includes("확장") ||
+        res.data.text?.includes("결말") ||
+        res.data.text?.includes("완성해도") ||
+        res.data.text?.includes("마무리");
+
+      if (isEndingPrompt) setOpenEndingModal(true);
+    } catch (err) {
+      console.error("❌ 질문 생성 실패:", err);
+      setQuestion("질문을 불러오지 못했어. 다시 말해줄래?");
+    } finally {
+      audioChunksRef.current = [];
+    }
+  };
+
+  const handleExpandEnding = async () => {
+    try {
+      const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
+        chat_id: chatId,
+      });
+
+      navigate("/rewrite_end/step04", {
+        state: {
+          storyId,
+          extendedStory: res.data.extended_story,
+        },
+      });
+    } catch (err) {
+      console.error("❌ 결말 확장 실패:", err);
+    }
+  };
+
+  const handleContinueVoice = () => {
+    setOpenEndingModal(false);
+  };
+
+  const handleMicClick = () => {
+    if (!isRecording) return startRecording();
+    stopRecording(true);
+  };
+
+  const handleChatClick = () => {
+    if (isRecording) stopRecording(false);
+
+    navigate("/rewrite_end/step03", {
+      state: { storyId, chatId, question },
+    });
+  };
 
   return (
     <Screen>
       <Header title="" showBack={false} />
-      <CloseBtn onClick={() => setOpen(true)}>
+
+      <CloseBtn onClick={() => setOpenExit(true)}>
         <img src={CLOSE_ICON} alt="닫기" />
       </CloseBtn>
 
       <Content>
-        <Character src={CHARACTER} alt="사자" />
-        <Question>
-          신데렐라 동화에서
-          <br />
-          가장 좋아했던 캐릭터가 뭐야?
-        </Question>
+        <Character src={CHARACTER} alt="character" />
+        <Question>{question || "기다려줘… 질문 준비 중이야!"}</Question>
       </Content>
 
       <ArcArea>
@@ -43,42 +178,43 @@ const Endwritestep02 = () => {
         </DotWrapper>
 
         <BottomIcons>
-          <IconButton onClick={handleMuteClick}>
-            <img src={MUTE_ICON} alt="음소거" />
-          </IconButton>
+          <MicButton onClick={handleMicClick}>
+            <img src={MUTE_ICON} alt="mic" />
+          </MicButton>
 
           <IconButton onClick={handleChatClick}>
-            <img src={CHAT_ICON} alt="채팅" />
+            <img src={CHAT_ICON} alt="chat" />
           </IconButton>
         </BottomIcons>
       </ArcArea>
 
-      {open && (
-        <Dim onClick={() => setOpen(false)}>
-          <Modal onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>앗! 그만두시겠어요?</ModalTitle>
-            <ModalDesc>
-              아직 대화를 완성하기엔 대화가 조금 부족해요.
-              <br />
-              그만하면 지금까지의 대화를 되돌릴 수 없어요.
-            </ModalDesc>
-
-            <BtnRow>
-              <ModalBtnGray onClick={() => navigate("/rewrite_end/")}>
-                나가기
-              </ModalBtnGray>
-              <ModalBtnYellow onClick={() => setOpen(false)}>
-                계속 대화하기
-              </ModalBtnYellow>
-            </BtnRow>
-          </Modal>
-        </Dim>
+      {openEndingModal && (
+        <EndingDim onClick={() => setOpenEndingModal(false)}>
+          <EndingModal onClick={(e) => e.stopPropagation()}>
+            <EndingTitle>결말을 확장할까요?</EndingTitle>
+            <EndingDesc>
+              대화가 충분히 진행되었어요!
+              <br /> 결말을 확장할까요?
+            </EndingDesc>
+            <EndingBtnRow>
+              <EndingBtnGray onClick={handleContinueVoice}>
+                더 대화하기
+              </EndingBtnGray>
+              <EndingBtnYellow onClick={handleExpandEnding}>
+                결말 확장하기
+              </EndingBtnYellow>
+            </EndingBtnRow>
+          </EndingModal>
+        </EndingDim>
       )}
     </Screen>
   );
 };
 
 export default Endwritestep02;
+
+
+
 
 const bounce = keyframes`
   0%, 100% { transform: translateY(0); opacity: 0.6; }
@@ -105,33 +241,31 @@ const CloseBtn = styled.button`
   img {
     width: 28px;
     height: 28px;
-    display: block;
   }
 `;
 
 const Content = styled.div`
   flex: 1;
+  margin-top: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-top: 40px;
-  text-align: center;
 `;
 
 const Character = styled.img`
   width: 138px;
   margin-bottom: 20px;
-  user-select: none;
-  pointer-events: none;
 `;
 
 const Question = styled.p`
   color: #3a372f;
   font-family: "NanumSquareRound";
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
-  line-height: 28px;
+  line-height: 24px;
+  text-align: center;
+  padding: 0 24px;
 `;
 
 const ArcArea = styled.div`
@@ -174,8 +308,8 @@ const Dot = styled.div`
 
 const BottomIcons = styled.div`
   position: absolute;
-  bottom: 40px;
   width: 100%;
+  bottom: 40px;
   padding: 0 70px;
   display: flex;
   justify-content: space-between;
@@ -192,77 +326,82 @@ const IconButton = styled.button`
   }
 `;
 
+const MicButton = styled(IconButton)`
+  img {
+    width: 35px;
+    height: 35px;
+  }
+`;
 
-const Dim = styled.div`
-  position: absolute;    /* fixed → absolute */
+/* ============================
+      결말 확장 모달 스타일
+============================ */
+
+const EndingDim = styled.div`
+  position: fixed;
   top: 0;
   left: 0;
   width: 390px;
   height: 852px;
-  background-color: rgba(0,0,0,0.4);  /* 투명도 동일하게 */
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 999;
+  justify-content: center;
+  z-index: 2000;
 `;
 
-
-const Modal = styled.div`
+const EndingModal = styled.div`
   width: 320px;
   height: 196px;
-  padding: 24px 24px 16px 24px;
-  background: #fff;
+  background: #ffffff;
   border-radius: 16px;
-
+  padding: 24px 24px 16px 24px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
 `;
 
-
-const ModalTitle = styled.h3`
-  color: #3a372f;
-  font-size: 20px;
-  font-weight: 800;
-  margin: 6px 0 8px;
+const EndingTitle = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: #000;
 `;
 
-const ModalDesc = styled.p`
-  color: #7a7a7a;
+const EndingDesc = styled.div`
+  margin-top: 6px;
   font-size: 14px;
-  line-height: 22px;
-  margin-bottom: 16px;
+  text-align: center;
+  color: #555;
+  line-height: 1.4;
 `;
 
-const BtnRow = styled.div`
+const EndingBtnRow = styled.div`
   display: flex;
   gap: 12px;
+  margin-top: 20px;
 `;
 
-
-const ModalBtnGray = styled.button`
+const EndingBtnGray = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #f1f1f1;
-  border-radius: 99px;
-  border: none;
-  color: #7a7a7a;
+  border-radius: 10px;
+  background: #e5e5e5;
+  color: #000;
   font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 600;
+  border: none;
 `;
 
-const ModalBtnYellow = styled.button`
+const EndingBtnYellow = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #ffd342;
-  border-radius: 99px;
-  border: none;
-  color: #fff;
+  border-radius: 10px;
+  background: #ffd342;
+  color: #000;
   font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 600;
+  border: none;
 `;
 
