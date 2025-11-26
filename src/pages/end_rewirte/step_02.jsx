@@ -194,7 +194,7 @@ const Endwritestep02 = () => {
             <EndingTitle>결말을 확장할까요?</EndingTitle>
             <EndingDesc>
               대화가 충분히 진행되었어요!
-              <br /> 결말을 확장할까요?
+              <br />결말을 확장할까요?
             </EndingDesc>
             <EndingBtnRow>
               <EndingBtnGray onClick={handleContinueVoice}>
