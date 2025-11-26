@@ -11,6 +11,7 @@ const ICON_EXIT = "/icons/new_right_part.svg";
 const Storystep07 = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const story_id = location.state?.story_id;
 
   const incomingTitle = location.state?.title ||"";
   const incomingStory =
@@ -31,6 +32,7 @@ const Storystep07 = () => {
       state: {
         title: res.data.title,
         content: res.data.content,
+        story_id: res.data.id,
       },
     });
   } catch (err) {
@@ -86,7 +88,7 @@ const Storystep07 = () => {
           <RewriteIcon src={ICON_ROTATE} alt="icon" />
         </RewriteRow>
 
-        <NextButton onClick={() => navigate("/illust-portrait")}>
+        <NextButton onClick={() => navigate(`/illust-portrait/${story_id}`)}>
           다음
         </NextButton>
       </BottomArea>

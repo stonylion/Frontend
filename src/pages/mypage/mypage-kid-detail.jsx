@@ -17,50 +17,29 @@ function MypageKidDetail() {
 
     const [goodStories, setGoodStories] = useState([
     {
-        id: 1,
-        title: "좋은 동화 1",
-        runtime: "5분",
-        img: "/icons/book1.svg",
-        created_at: "2025-11-25"
+        id: 21,
+        title: "행복을 나누는 작은 토끼",
+        runtime: "0-3분",
+        img: "",
+        created_at: "2025-11-26"
     },
     {
-        id: 2,
-        title: "좋은 동화 2",
-        runtime: "7분",
-        img: "/icons/book2.svg",
-        created_at: "2025-11-20"
+        id: 5,
+        title: "작은 정원, 큰 우정",
+        runtime: "0-3분",
+        img: "",
+        created_at: "2025-11-24"
     },
-    {
-        id: 3,
-        title: "좋은 동화 1",
-        runtime: "5분",
-        img: "/icons/book1.svg",
-        created_at: "2025-11-25"
-    },
-    {
-        id: 4,
-        title: "좋은 동화 2",
-        runtime: "7분",
-        img: "/icons/book2.svg",
-        created_at: "2025-11-20"
-    }
 ]);
 
 const [badStories, setBadStories] = useState([
     {
-        id: 3,
-        title: "아쉬운 동화 1",
-        runtime: "6분",
-        img: "/icons/book3.svg",
-        created_at: "2025-11-18"
+        id: 22,
+        title: "친구와 나누기",
+        runtime: "0-3분",
+        img: "",
+        created_at: "2025-11-26"
     },
-    {
-        id: 4,
-        title: "아쉬운 동화 2",
-        runtime: "8분",
-        img: "/icons/book4.svg",
-        created_at: "2025-11-22"
-    }
 ]);
     const [nickname, setNickname] = useState('');
     const [birth, setBirth] = useState('');
@@ -222,7 +201,9 @@ const [badStories, setBadStories] = useState([
                     <p>NEO 성격 분석 </p>
                     <span>결과예요</span>
                 </ResultLabel>
-                <Pentagon></Pentagon>
+                <Pentagon>
+                    <img src='/imges/pentagon.svg' />
+                </Pentagon>
                 <AnalysisComent>AI가 아이의 대화 내용을 분석해 산출한 참고용 결과로,<br />보다 정확한 성격 검사를 원할 시, 정식 검사를 권장드립니다.</AnalysisComent>
                 <DetailLabel>
                     상세 분석
@@ -256,7 +237,9 @@ const [badStories, setBadStories] = useState([
                 </WordProgress>
                 <WordTop5>
                     <ReportLabel>한 달 동안 가장 많이 사용한 단어 Top 5</ReportLabel>
-                    <Circle></Circle>
+                    <Circle>
+                        <img src='/imges/circle.svg' />
+                    </Circle>
                     <AnalysisComent>NDW란 고유 단어의 수로, 아이의 발화 중 중복을 제외한<br />유일한 단어의 수를 세어 어휘의 다양성을 측정하는 기준입니다.</AnalysisComent>
                 </WordTop5>
                 <Line style={{ marginTop: '32px'}} ></Line>
@@ -542,6 +525,8 @@ const ResultLabel = styled.div`
 const Pentagon = styled.div`
     width: 358px;
     height: 220px;
+    display: flex;
+    justify-content: center;
 `
 
 const AnalysisComent = styled.div`
@@ -646,6 +631,8 @@ const WordTop5 = styled.div`
 const Circle = styled.div`
     width: 358px;
     height: 240px;
+    display: flex;
+    justify-content: center;
 `
 
 const Custom = styled.div`
