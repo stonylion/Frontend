@@ -109,7 +109,7 @@ const Endwritestep02 = () => {
       const isEndingPrompt =
         res.data.text?.includes("확장") ||
         res.data.text?.includes("확장해도") ||
-        res.data.text?.includes("완성해도") ||
+        res.data.text?.includes("완성해도");
 
       if (isEndingPrompt) setOpenEndingModal(true);
     } catch (err) {

@@ -78,7 +78,7 @@ const Endwritestep03 = () => {
       const isEndingPrompt =
         botReply?.includes("확장해도") ||
         botReply?.includes("완성해도") ||
-        botReply?.includes("확장") ||
+        botReply?.includes("확장");
 
       const finalFlag = can_finalize || isEndingPrompt;
       setCanFinalize(finalFlag);

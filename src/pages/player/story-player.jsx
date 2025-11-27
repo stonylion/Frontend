@@ -1,9 +1,10 @@
+import api from '../../api/axios';
 import styled from 'styled-components';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import Button from '../../components/Button';
 
-const CustomEnding = ({ navigate, handleReplay, vote, setVote }) => (
+const CustomEnding = ({ navigate, handleReplay, vote, setVote, sendLastPage }) => (
     <EndingOverlay>
         <TopBar>
             <LeftGroup onClick={(e) => e.stopPropagation()}>
@@ -25,7 +26,10 @@ const CustomEnding = ({ navigate, handleReplay, vote, setVote }) => (
         </VoteContainer>
         <EndingButton
             style={{ position: 'absolute', left: '246px', top: '270px' }}
-            onClick={() => navigate('/mylib')}
+            onClick={async () => {
+                await sendLastPage();
+                navigate('/mylib');
+            }}
         >
             나가기
         </EndingButton>
@@ -39,7 +43,7 @@ const CustomEnding = ({ navigate, handleReplay, vote, setVote }) => (
     </EndingOverlay>
 );
 
-const ClassicEnding = ({ navigate, handleReplay, storyId, storyTitle }) => (
+const ClassicEnding = ({ navigate, handleReplay, storyId, storyTitle, sendLastPage }) => (
     <EndingOverlay>
         <TopBar>
             <LeftGroup onClick={(e) => e.stopPropagation()}>
@@ -73,7 +77,10 @@ const ClassicEnding = ({ navigate, handleReplay, storyId, storyTitle }) => (
 
         <EndingButton
             style={{ position: 'absolute', left: '246px', top: '206px' }}
-            onClick={() => navigate('/mylib')}
+            onClick={async () => {
+                await sendLastPage();
+                navigate('/mylib');
+            }}
         >
             나가기
         </EndingButton>
@@ -88,7 +95,7 @@ const ClassicEnding = ({ navigate, handleReplay, storyId, storyTitle }) => (
     </EndingOverlay>
 );
 
-const ExtendedEnding = ({ navigate, handleReplay }) => (
+const ExtendedEnding = ({ navigate, handleReplay, sendLastPage }) => (
     <EndingOverlay>
         <TopBar>
             <LeftGroup onClick={(e) => e.stopPropagation()}>
@@ -101,7 +108,10 @@ const ExtendedEnding = ({ navigate, handleReplay }) => (
         </TopBar>
         <EndingButton
             style={{ position: 'absolute', left: '246px', top: '150px' }}
-            onClick={() => navigate('/mylib')}
+            onClick={async () => {
+                await sendLastPage();
+                navigate('/mylib');
+            }}
         >
             나가기
         </EndingButton>
@@ -118,31 +128,27 @@ const ExtendedEnding = ({ navigate, handleReplay }) => (
 function StoryPlayer() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { story_id } = useParams();
 
     // 🍅 Mylib에서 넘겨준 값 받기: navigate(`/story-play/${book.story.id}`, { state: { book } }); (결말 확장에서 필요)
     const book = location.state?.book;
 
     const storyId = book?.story?.id;
-    const storyTitle = book?.story?.title || '동화 제목을 입력해주세요';
     const storyCategory = book?.story?.category || 'custom';
 
-    const pages = [
-        { img: '/imges/illust-landscape.png', page: '1페이지', type: '자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다. 자막 영' },
-        { img: '/imges/story-play.png', page: '2페이지', type: '자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니' },
-        { img: '/imges/illust-style.png', page: '3페이지', type: '자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니다아아아' },
-        { img: '/imges/illust-style.png', page: '4페이지', type: '자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니' },
-        { img: '/imges/illust-style.png', page: '5페이지', type: '자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니' },
-        { img: '/imges/illust-style.png', page: '6페이지', type: '자막 영역입니다.자막 영역입니다.자막 영역입니다.자막 영역입니' },
-    ];
+    const avatarMap = {
+        voice1: "/icons/avatar1.svg",
+        voice2: '/icons/avatar2.svg',
+        voice3: '/icons/avatar3.svg',
+        voice4: '/icons/avatar4.svg',
+    };
 
-    const voices = [
-        { avatar: '/icons/avatar3.svg', name: '목소리1' },
-        { avatar: '/icons/avatar1.svg', name: '목소리2' },
-        { avatar: '/icons/avatar5.svg', name: '성우 목소리1' },
-    ];
-
+    const [pages, setPages] = useState([]);
+    const [voices, setVoices] = useState([]);
     const [selectedImg, setSelectedImg] = useState(0);
-    const [selectedVoice, setSelectedVoice] = useState(0);
+    const [selectedVoice, setSelectedVoice] = useState(null);
+    const [isAutoPlay, setIsAutoPlay] = useState(false);
+    const audioRef = useRef(null);
     const [step, setStep] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
     const [typeOn, setTypeOn] = useState(false);
@@ -151,6 +157,9 @@ function StoryPlayer() {
     const [endingType, setEndingType] = useState(null); 
     const [showEndingOverlay, setShowEndingOverlay] = useState(false);
     const [vote, setVote] = useState(null);
+    const [currentPage, setCurrentPage] = useState(null);
+    const [storyTitle, setStoryTitle] = useState(null);
+    const [author, setAuthor] = useState(null);
     const isLastPage = selectedImg === pages.length - 1;
 
     // 🍅 Mylib에서 온 story.category 기준으로 endingType 설정: 결말 확장에서 필요
@@ -205,8 +214,22 @@ function StoryPlayer() {
         return result.trim();
     };
 
-    const voiceClick = () => {
-        setVoiceModal(true);
+    const voiceClick = async () => {
+        try {
+            const response = await api.get('api/accounts/voice/list');
+            console.log('목소리 목록 조회 성공:', response.data);
+
+            const formattedVoices = response.data.voices.map((v) => ({
+                id: v.voice_id,
+                name: v.name,
+                audio: v.cloned_voice_url,
+                avatar: avatarMap[v.voice_image_code],
+            }))
+            setVoices(formattedVoices);
+            setVoiceModal(true);
+        } catch (e) {
+            console.error('목소리 목록 조회 실패:', e);
+        }
     };
 
     const handleDoubleTap = (direction) => {
@@ -256,8 +279,136 @@ function StoryPlayer() {
         }
     };
 
+    const togglePlay = () => {
+        if (playOn) {
+            handleStopVoice();
+        } else {
+            handleStartVoice();
+        }
+    };
+
+    useEffect(() => {
+        const fetchStory  = async () => {
+            try {
+                const response = await api.get(`/api/story/${story_id}/pages`);
+
+                const formattedPages = response.data.map((p) => ({
+                    img: p.illustrations[0]?.image,
+                    page: `${p.page_number}페이지`,
+                    type: p.text,
+                }));
+                setPages(formattedPages);
+                console.log('동화 데이터 조회 성공:', response.data);
+            } catch (e) {
+                console.error('동화 데이터 조회 실패:', e);
+            }
+        }
+        fetchStory();
+    }, [story_id]);
+
+    useEffect(() => {
+        if (pages.length > 0) {
+            setCurrentPage(pages[selectedImg]);
+        }
+    }, [selectedImg, pages]);
+
+
+    useEffect(() => {
+        if (isAutoPlay && selectedVoice && currentPage) {
+            playVoice(currentPage.text);
+        }
+    }, [currentPage]);
+
+    useEffect(() => {
+        const fetchTitle = async () => {
+            try {
+                const response = await api.get(`/api/story/${story_id}/`);
+                console.log('동화 제목 조회 성공:', response.data);
+
+                setStoryTitle(response.data.title);
+                setAuthor(response.data.author);
+            } catch (e) {
+                console.error('동화 제목 조회 실패:', e);
+            }
+        }
+        fetchTitle();
+    }, [story_id]);
+
+    const handleSelectedVoice = async (voice) => {
+        if (!currentPage) return;
+
+        try {
+
+            const payload = {
+                title: storyTitle,
+                author: author,
+                pages: pages.map((p, index) => ({
+                    page: index + 1,
+                    text: p.type
+                }))
+            }
+
+            console.log("전송 payload:", payload);
+
+            const response = await api.post('/api/story/user/voice/tts/', payload);
+            setSelectedVoice({ ...voice, audio: response.data.audio_url });
+            console.log('TTS 생성 성공:', response.data.tts_audio_urls);
+        } catch (e) {
+            console.error('tts 음성 파일 생성 실패:', e);
+        }
+    };
+
+    const handleStartVoice = () => {
+        if(!selectedVoice || !currentPage) return;
+        setPlayOn(true);
+        setIsAutoPlay(true);
+        playVoice(currentPage.text);
+    };
+
+    const playVoice = (text) => {
+        if (!selectedVoice) return;
+
+        // 이미 재생 중인 오디오가 있으면
+        if (audioRef.current) {
+            audioRef.current.onended = null;
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+
+        const audio = new Audio(selectedVoice.audio);
+        audioRef.current = audio;
+
+        audio.play().catch(err => {
+            if (err.name !== 'AbortError') {
+                console.error('재생 실패:', err);
+            }
+        });
+    };
+
+    const handleStopVoice = () => {
+        setPlayOn(false);
+        setIsAutoPlay(false);
+        if(audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+        }
+    };
+
+    const sendLastPage = async () => {
+        try {
+            await api.post('api/mylibrary/last-viewed/', {
+                story_id: story_id,
+                page_number: selectedImg + 1,
+            });
+            console.log('마지막 페이지 전송 성공:');
+        } catch (e) {
+            console.error('마지막 페이지 전송 실패:', e);
+        }
+    };
+
     return (
         <Wrapper onClick={handleTap}>
+            {pages.length > 0 && pages[selectedImg] && (
             <StoryImg>
                 <img src={pages[selectedImg].img} />
 
@@ -267,6 +418,8 @@ function StoryPlayer() {
                     </TypeContainer>
                 )}
             </StoryImg>
+            )}
+            
 
             {!isLastPage && step < 2 && (
                 <Overlay>
@@ -294,9 +447,12 @@ function StoryPlayer() {
                         <LeftGroup onClick={(e) => e.stopPropagation()}>
                             <img
                                 src='/icons/Leftpart-white.svg'
-                                onClick={() => navigate('/mylib')}
+                                onClick={async () => {
+                                    await sendLastPage();
+                                    navigate('/mylib')
+                                }}
                             />
-                            <Title>동화 제목을 입력해주세요</Title>
+                            <Title>{storyTitle}</Title>
                         </LeftGroup>
                         <RightButtons onClick={(e) => e.stopPropagation()}>
                             <BtnContainer onClick={() => setTypeOn(!typeOn)}>
@@ -307,20 +463,20 @@ function StoryPlayer() {
                                 {typeOn ? '자막끄기' : '자막켜기'}
                             </BtnContainer>
                             <BtnContainer onClick={voiceClick}>
-                                <img src='/icons/sound-white.svg' width={24} />
+                                <img
+                                    src='/icons/sound-white.svg'
+                                    width={24}
+                                    onClick={handleStartVoice}
+                                />
                                 읽어주기
                             </BtnContainer>
                         </RightButtons>
                     </TopBar>
-                    <PlayBtn
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setPlayOn(!playOn);
-                        }}
-                    >
+                    <PlayBtn>
                         <img
                             src={playOn ? '/icons/stop.svg' : '/icons/play.svg'}
                             width={40}
+                            onClick={togglePlay}
                         />
                     </PlayBtn>
                     <PageContainer onClick={(e) => e.stopPropagation()}>
@@ -352,17 +508,21 @@ function StoryPlayer() {
                                 {voices.map((v, i) => (
                                     <VoiceSelect
                                         key={i}
-                                        $isSelected={selectedVoice === i}
-                                        onClick={() => setSelectedVoice(i)}
+                                        $isSelected={selectedVoice?.id === v.id}
+                                        onClick={() => setSelectedVoice(v)}
                                     >
-                                        <LeftVoice $isSelected={selectedVoice === i}>
-                                            <Img $isSelected={selectedVoice === i}>
+                                        <LeftVoice $isSelected={selectedVoice?.id === v.id}>
+                                            <Img $isSelected={selectedVoice?.id === v.id}>
                                                 <img src={v.avatar} width={44} />
                                             </Img>
                                             {v.name}
                                         </LeftVoice>
                                         <RightVoice>
-                                            <img src='/icons/preview-play.svg' width={20} />
+                                            <img
+                                                src='/icons/preview-play.svg'
+                                                width={20}
+                                                onClick={() => handleSelectedVoice(v)}
+                                            />
                                         </RightVoice>
                                     </VoiceSelect>
                                 ))}
@@ -377,14 +537,16 @@ function StoryPlayer() {
                                     </LeftVoice>
                                 </VoiceSelect>
                             </VoiceContainer>
-                            <Button
-                                $width="272px"
-                                $height="40px"
-                                $bgColor="#393939"
-                                onClick={() => { setVoiceModal(false); }}
+                            <VoiceBtn
+                                onClick={() => {
+                                    setVoiceModal(false);
+                                    if (selectedVoice && currentPage) {
+                                        handleStartVoice();
+                                    }
+                                }}
                             >
                                 확인
-                            </Button>
+                            </VoiceBtn>
                         </VoiceModal>
                     )}
                 </Overlay>
@@ -404,6 +566,15 @@ const Wrapper = styled.div`
     overflow: hidden;
 `;
 
+const VoiceBtn = styled.button`
+    height: 40px;
+    width: 272px;
+    background-color: #393939;
+    border-radius: 99px;
+    color: white;
+    font-size: 14px;
+    font-weight: 800;
+`
 const StoryImg = styled.div`
     width: 694px;
     height: 390px;
@@ -608,7 +779,7 @@ const Type = styled.div`
     overflow: hidden;
 
     color: #fff;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 800;
     line-height: 32px;
     text-align: center;
@@ -655,6 +826,7 @@ const LeftVoice = styled.div`
     font-size: 16px;
     font-weight: 700;
     align-items: center;
+    padding: 10px 0;
 `;
 
 const Img = styled.div`

@@ -13,6 +13,13 @@ function Home() {
         extended: '/icons/Bookmark-yellow.svg',
     };
 
+    const avatarMap = {
+        child1: '/icons/avatar1.svg',
+        child2: '/icons/avatar2.svg',
+        child3: '/icons/avatar3.svg',
+        child4: '/icons/avatar4.svg',
+    };
+
     const [kidsData, setKidsData] = useState([]);
 
     const [recentHistory, setRecentHistory] = useState();
@@ -50,7 +57,11 @@ function Home() {
     };
 
     const playBook = (story) => {
-        navigate(`/story-player/${story.id}`);
+        navigate(`/story-player/${story.id}`, {
+            state: {
+                storyTitle: story.title
+            }
+        });
     };
     const viewScript = async (story) => {
         try {
@@ -104,7 +115,7 @@ function Home() {
         const fetchChildren = async () => {
             try {
                 const response = await api.get('api/accounts/children/');
-                console.log("response.data:", response.data);
+                console.log("아이 목록 조회 성공:", response.data);
                 const children = response.data.children.map((kid, idx) => ({
                     ...kid,
                     avatar: `/icons/avatar${idx + 1}.svg`
@@ -145,7 +156,20 @@ function Home() {
                 const response = await api.get('/api/story/', { params: { category: 'custom' } });
                 console.log("제작 동화 조회 성공:", response.data);
 
-                setMyStories(response.data);
+                const storiesWithCover = await Promise.all(response.data.map(async (story) => {
+                    if (!story.cover) {
+                        try {
+                            const coverRes = await api.get(`/api/story/${story.id}/`);
+                            return { ...story, cover: coverRes.data.cover };
+                        } catch (e) {
+                            console.error('동화 표지 조회 실패:', e);
+                            return { ...story, cover: '/icons/book1.svg' };
+                        }
+                    }
+                    return story;
+                }));
+
+                setMyStories(storiesWithCover);
             } catch (e) {
                 console.error("제작 동화 조회 실패:", e);
             }
@@ -193,7 +217,6 @@ function Home() {
         fetchReWriteStories();
     }, []);
 
-
     return (
         <>
         <Logo>
@@ -201,7 +224,7 @@ function Home() {
 
             {selectedKid && (
                 <img
-                    src={selectedKid.avatar}
+                    src={avatarMap[selectedKid?.image]}
                     width={40}
                     onClick={() => setOpen(!open)}
                     style={{ border: "1px solid #f1f1f1", borderRadius: "99px"}}
@@ -247,7 +270,7 @@ function Home() {
                             <HistoryContainer key={history.id}>
                                 <Card>
                                     <img
-                                        src={history.story?.img || '/icons/book.svg'}
+                                        src={history.story.cover || '/icons/book.svg'}
                                         onClick={() => navigate(`/story-player/${history.id}`)}
                                     />
                                     <Badge>
@@ -287,7 +310,7 @@ function Home() {
                         <CreatedContainer key={story.id} onClick={() => handleMyStoryClick(story.id)}>
                                 {activeMyStoryId === story.id ? (
                                     <OptionCard
-                                        $imgUrl={story.img || '/icons/book1.svg'}
+                                        $imgUrl={story.cover || '/icons/book1.svg'}
                                         onClick={e => e.stopPropagation()}
                                     >
                                         <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveMyStoryId(null); }}>×</CloseBtn>
@@ -298,7 +321,7 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img || '/icons/book1.svg'} />
+                                            <img src={story.cover || '/icons/book1.svg'} />
                                         </BookWrapper>
                                     </>
                                 )}
@@ -328,7 +351,7 @@ function Home() {
                         <CreatedContainer key={story.id} onClick={() => handleRecommendedClick(story.id)}>
                             {activeRecommendedId === story.id ? (
                                     <OptionCard
-                                        $imgUrl={story.img || '/icons/book2.svg'}
+                                        $imgUrl={story.cover || '/icons/book2.svg'}
                                         onClick={e => e.stopPropagation()}
                                     >
                                         <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveRecommendedId(null); }}>×</CloseBtn>
@@ -338,7 +361,7 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img || '/icons/book2.svg'} />
+                                            <img src={story.cover || '/icons/book2.svg'} />
                                         </BookWrapper>
                                     </>
                                 )}
@@ -367,7 +390,7 @@ function Home() {
                         <CreatedContainer key={story.id} onClick={() => handleReWriteStoryClick(story.id)}>
                                 {activeReWriteStoryId === story.id ? (
                                     <OptionCard
-                                        $imgUrl={story.img || '/icons/book2.svg'}
+                                        $imgUrl={story.cover || '/icons/book2.svg'}
                                         onClick={e => e.stopPropagation()}
                                     >
                                         <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveReWriteStoryId(null); }}>×</CloseBtn>
@@ -378,7 +401,7 @@ function Home() {
                                 ) : (
                                     <>
                                         <BookWrapper>
-                                            <img src={story.img || '/icons/book2.svg'} />
+                                            <img src={story.cover || '/icons/book2.svg'} />
                                         </BookWrapper>
                                     </>
                                 )}

@@ -27,7 +27,11 @@ function Mylib() {
     };
 
     const playBook = async (book) => {
-        navigate(`/story-play/${book.story.id}`);
+        navigate(`/story-player/${book.story.id}`, {
+          state: {
+            storyTitle: book.story.title
+          }
+        });
     };
 
     const viewScript = async (book) => {
@@ -85,10 +89,21 @@ function Mylib() {
           }
 
           const response = await api.get(endpoint);
+          const booksData = response.data.results;
+          const booksWithCover = await Promise.all(
+            booksData.map(async (book) => {
+              try {
+                const res = await api.get(`/api/story/${book.story.id}/`);
+                return { ...book, story: { ...book.story, cover: res.data.cover } };
+              } catch (e) {
+                console.error(`동화 표지 조회 실패: ${book.story.title}`, e);
+              return book;
+              }
+            })
+          );
 
-          console.log("내서재 조회 성공:", response.data);
-
-          setBooks(response.data.results);
+          setBooks(booksWithCover);
+          console.log("내서재 조회 성공:", booksWithCover);
         } catch (e) {
           console.error('내 서재 불러오기 실패:', e);
         }
@@ -151,7 +166,7 @@ createMylibraryRecord(1);
                 <BookCard key={book.id} onClick={() => handleCardClick(book.id)}>
                   {activeBookId === book.id ? (
                     <OptionCard
-                      $imgUrl={book.story.img || '/icons/book2.svg'}
+                      $imgUrl={book.story.cover || '/icons/book1.svg'}
                       onClick={e => e.stopPropagation()}
                     >
                       <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveBookId(null); }}>×</CloseBtn>
@@ -162,7 +177,12 @@ createMylibraryRecord(1);
                   ) : (
                     <>
                     <BookWrapper>
-                      <BookImg src={book.story.img || '/icons/book2.svg'} />
+                      <BookImg>
+                          <img src={book.story.cover || '/icons/book2.svg'} />
+                          <ProgressContainer>
+                            <ProgressFill style={{ width: `${book.last_viewed_page && book.story.page_count ? (book.last_viewed_page / book.story.page_count) * 100 : 0}%` }} />
+                          </ProgressContainer>
+                      </BookImg>
                       <Badge>
                       <img
                         src={
@@ -174,9 +194,6 @@ createMylibraryRecord(1);
                         }
                       />
                     </Badge>
-                      <ProgressContainer>
-                        <ProgressFill style={{ width: `${book.last_viewed_page && book.story.page_count ? (book.last_viewed_page / book.story.page_count) * 100 : 0}%` }} />
-                      </ProgressContainer>
                     </BookWrapper>
                     </>
                   )}
@@ -353,7 +370,7 @@ const OptionCard = styled.div`
   width: 110px;
   height: 154px;
   border-radius: 12px;
-  background: linear-gradient(180deg, #393939 0%, rgba(39, 34, 31, 0.70) 100%), url(${props => props.$imgUrl}) lightgray 50% / cover no-repeat;
+  background: linear-gradient(180deg, #393939 0%, rgba(39, 34, 31, 0.70) 100%), url(${props => props.$imgUrl || '/icons/book2.svg'}) center / cover no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -409,12 +426,23 @@ const BookWrapper = styled.div`
 `;
 
 const BookImg = styled.div`
+  position: relative;
   width: 110px;
   height: 154px;
   border-radius: 12px;
   border: 0.5px solid #DEDEDE;
-  background: url(${props => props.$imgUrl || '/icons/book2.svg'}) center/cover no-repeat;
+  object-fit: cover;
   box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+
+  img {
+    width: 110px;
+    height: 154px;
+    border-radius: 12px;
+    border: 0.5px solid #DEDEDE;
+    object-fit: cover;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+  }
 `
 
 const Empty = styled.div`
