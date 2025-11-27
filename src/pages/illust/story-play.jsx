@@ -1,10 +1,11 @@
 import styled from 'styled-components';
 import Button from '../../components/Button';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
 function StoryPlay() {
     const navigate = useNavigate();
     const { story_id } = useParams();
+    const location = useLocation();
 
     return (
         <Wrapper>

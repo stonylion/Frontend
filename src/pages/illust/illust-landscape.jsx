@@ -76,15 +76,6 @@ function IllustLandscape() {
         }
     };
 
-    const handleVoice = async () => {
-        try {
-            const response = await api.get('/api/story/voice/tts/');
-            console.log("tts 재생 성공:", response.data);
-        } catch (e) {
-            console.error('tts 재생 실패:', e);
-        }
-    };
-
     return (
         <Wrapper>
         <Contents1>
@@ -114,14 +105,9 @@ function IllustLandscape() {
             </ImgList>
         </Contents1>
         <Contents2>
-            <PageLabel>{selectedImg?.page_number}</PageLabel>
+            <PageLabel>페이지 {selectedImg?.page_number}</PageLabel>
             <PageContent>
                 <ContentContainer>{selectedImg?.text}</ContentContainer>
-                <img
-                    style={{ cursor: 'pointer' }}
-                    src='/icons/sound.svg'
-                    onClick={handleVoice}
-                />
             </PageContent>
             <BtnContainer>
                 <Button
@@ -246,7 +232,6 @@ const BtnContainer = styled.div`
 
 const ContentContainer = styled.div`
     width: 228px;
-    height: 192px;
     color: #7a7a7a;
     font-size: 16px;
     font-weight: 400;
