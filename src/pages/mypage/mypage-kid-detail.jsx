@@ -15,6 +15,10 @@ function MypageKidDetail() {
         child4: '/icons/avatar4.svg',
     };
 
+    const NDWMap = {
+        
+    }
+
     const [goodStories, setGoodStories] = useState([
     {
         id: 1,
@@ -218,7 +222,7 @@ const [badStories, setBadStories] = useState([
 
             <NEO>
                 <ResultLabel>
-                    <span>아이1의<br /></span>
+                    <span>{nickname}의<br /></span>
                     <p>NEO 성격 분석 </p>
                     <span>결과예요</span>
                 </ResultLabel>
@@ -235,7 +239,7 @@ const [badStories, setBadStories] = useState([
 
             <NDW>
                 <ResultLabel>
-                    <span>아이1의<br /></span>
+                    <span>{nickname}의<br /></span>
                     <p style={{ color: '#C5E384'}} >NDW 분석 </p>
                     <span>결과예요</span>
                 </ResultLabel>
