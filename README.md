@@ -1,16 +1,105 @@
-# React + Vite
+🧸 Stony – 부모의 목소리로 완성되는 AI 동화 서비스
+아이와 함께하는 시간이 부족해지고,
+어쩔 수 없이 스크린 육아가 늘어나는 시대에
+**“부모 목소리만큼 아이에게 따뜻한 건 없다”**라는 생각으로 시작했어요.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Stony는 부모님의 목소리와 경험을 기반으로
+아이에게 정서적으로 안전하고 교육적으로 의미 있는 이야기를
+AI가 함께 만들어주는 서비스예요.
 
-Currently, two official plugins are available:
+<br/>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+🌟 배포 링크
+👉 https://frontend-puof.vercel.app/
 
-## React Compiler
+<br/>
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+🆘 문제 인식
+👶 1. 아이와 함께 보내는 시간이 부족해요
 
-## Expanding the ESLint configuration
+바쁜 일상 속에서 아이에게 책을 읽어주거나 이야기를 나누는 시간 자체가 줄었어요.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+📱 2. 스크린 육아에 대한 걱정이 커지고 있어요
+
+영상 콘텐츠는 편하지만, 아이의 발달에 ‘좋은 자극’이 되는지는 늘 고민이죠.
+
+🎧 3. 부모 목소리 콘텐츠에 대한 선호는 높아요
+
+부모님의 목소리는 아이에게 안정감·애착·감정 발달에 큰 영향을 미쳐요.
+
+그래서 부모의 목소리 + 부모의 경험 + AI 스토리텔링을 결합해
+아이에게 가장 “부모다운” 콘텐츠를 돌려주고 싶었어요.
+
+<br/>
+✨ 주요 기능
+🎤 1. 부모 보이스 클로닝
+
+부모님의 실제 목소리를 AI가 자연스럽게 복제해요.
+아이에게 언제든지 “엄마/아빠 목소리로 읽어주는 동화”를 들려줄 수 있어요.
+
+짧은 녹음만으로 클론 생성
+
+목소리 자연스러움 유지
+
+동화 전체를 부모 목소리로 낭독 가능
+
+📖 2. 부모 경험 기반 AI 동화 생성
+
+부모님의 어린 시절 이야기, 배운 교훈, 아이에게 전하고 싶은 메시지를
+AI가 동화의 구조에 맞게 예쁘고 자연스럽게 재구성해요.
+
+부모 경험에서 감정·사건·교훈 키워드 추출
+
+3막/5막 구조로 재정리
+
+아이 연령에 맞는 어휘와 문장으로 동화 제작
+
+부모가 수정을 원하면 여러 번 재생성 가능
+
+📘 3. 명작 동화 확장 (Alternate Story Generation)
+
+아이와 함께 익숙한 명작 동화에 새로운 상상력을 더해요.
+
+기존 동화의 뒷이야기, 대체 결말, 새로운 사건 생성
+
+아이가 선택한 키워드로 장면이 달라짐
+
+부모 목소리로 다시 읽어줄 수 있음
+
+🧠 4. 아이 발화 분석 리포트
+
+아이의 말하기 데이터를 분석해
+언어 능력과 성향을 가볍게 확인할 수 있는 리포트를 제공해요.
+
+NDW, TKN 등 아동 언어 분석 지표 활용
+
+월간 변화 트렌드 제공
+
+부모가 아이의 성장 포인트를 쉽게 파악할 수 있음
+
+<br/>
+🧑‍💻 기술 스택
+
+아래는 서비스 전체를 이루고 있는 기술 요소들이에요.
+조금 더 보기 좋게 아이콘 형식으로 정리해봤어요!
+
+🎨 Frontend
+기술	설명
+⚛️ React	전체 UI 구성, 페이지 라우팅, 상태 관리
+🐍 Backend
+기술	설명
+🧩 Django DRF	API 서버, 인증/스토리지/비즈니스 로직
+🚀 Gunicorn	프로덕션 WSGI 서버
+🤖 AI Engines
+분야	기술
+📚 AI 스토리 엔진	GPT-4o-mini / GPT-5.1
+🎨 AI 삽화 엔진	GPT-Image-1mini
+🎤 Voice Engine	Whisper / NeMoTTS / OpenVoice
+🛢 Database & Infra
+분야	기술
+🗄️ Database	MySQL (RDS)
+⚡ Cache	Redis
+🗂️ Storage	AWS S3
+🌐 Proxy	Nginx
+📦 Container	Docker Compose
+<br/>
