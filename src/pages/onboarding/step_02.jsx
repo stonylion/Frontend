@@ -126,7 +126,7 @@ const OnboardingStep02 = () => {
   // 안내 메시지
   const renderArcTexts = () => {
     if (status === "recording")
-      return <ArcText>10초 내에 가이드 문장을 읽어주세요.</ArcText>;
+      return <ArcText>10초 이상 가이드 문장을 읽어주세요.</ArcText>;
 
     if (status === "paused")
       return <ArcText>내가 방금 녹음한 목소리를 들어보세요.</ArcText>;
