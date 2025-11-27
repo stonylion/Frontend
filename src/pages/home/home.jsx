@@ -141,7 +141,22 @@ function Home() {
                 const response = await api.get('/api/mylibrary/recentread/');
                 console.log("최근 본 동화 조회 성공:", response.data);
 
-                setRecentHistory(response.data);
+                const resultsWithCover = await Promise.all(
+                    response.data.results.map(async (history) => {
+                        if (!history.story.cover) {
+                            const coverRes = await api.get(`/api/story/${history.story.id}/`);
+                            return {
+                            ...history,
+                                story: {
+                                    ...history.story,
+                                    cover: coverRes.data.cover
+                                }
+                            };
+                        }
+                        return history;
+                    })
+                );
+                setRecentHistory({ ...response.data, results: resultsWithCover });
             } catch (e) {
                 console.error("최근 본 동화 조회 실패:", e);
             }
@@ -193,7 +208,16 @@ function Home() {
                 const response = await api.get('/api/story/', { params: { category: 'classic' } });
                 console.log("추천 명작 동화 조회 성공:", response.data);
 
-                setRecommendedStories(response.data);
+                const storiesWithCover = await Promise.all(
+                    response.data.map(async (story) => {
+                        if (!story.cover) {
+                            const coverRes = await api.get(`/api/story/${story.id}/`);
+                            return { ...story, cover: coverRes.data.cover };
+                        }
+                        return story;
+                    })
+                );
+                setRecommendedStories(storiesWithCover);
             } catch (e) {
                 console.error("명작 조회 실패:", e);
             }
@@ -208,7 +232,16 @@ function Home() {
                 const response = await api.get('/api/story/', { params: { category: 'extended' } });
                 console.log("확장 동화 조회 성공:", response.data);
 
-                setReWriteStories(response.data);
+                const storiesWithCover = await Promise.all(
+                    response.data.map(async (story) => {
+                        if (!story.cover) {
+                            const coverRes = await api.get(`/api/story/${story.id}/`);
+                            return { ...story, cover: coverRes.data.cover };
+                        }
+                        return story;
+                    })
+                );
+                setReWriteStories(storiesWithCover);
             } catch (e) {
                 console.error("확장 동화 조회 실패:", e);
             }
