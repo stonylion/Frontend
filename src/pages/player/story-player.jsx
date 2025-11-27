@@ -579,7 +579,6 @@ const StoryImg = styled.div`
     width: 694px;
     height: 390px;
     margin-left: 29px;
-    position: relative;
 
     img {
         width: 100%;
@@ -759,7 +758,7 @@ const TypeContainer = styled.div`
     position: absolute;
     bottom: 16px;
     width: 694px;
-    height: 112px;
+    height: 80px;
     display: flex;
     justify-content: center;
     align-items: center;
