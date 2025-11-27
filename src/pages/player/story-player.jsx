@@ -64,7 +64,7 @@ const ClassicEnding = ({ navigate, handleReplay, storyId, storyTitle, sendLastPa
                 backgroundColor: '#FFD342'
             }}
             onClick={() =>
-                navigate('/rewrite_end/main', {
+                navigate('/rewrite_end', {
                     state: {
                         storyId,
                         storyTitle
@@ -160,6 +160,7 @@ function StoryPlayer() {
     const [currentPage, setCurrentPage] = useState(null);
     const [storyTitle, setStoryTitle] = useState(null);
     const [author, setAuthor] = useState(null);
+    const [category, setCategory] = useState('classic');
     const isLastPage = selectedImg === pages.length - 1;
 
     // 🍅 Mylib에서 온 story.category 기준으로 endingType 설정: 결말 확장에서 필요
@@ -261,6 +262,7 @@ function StoryPlayer() {
                         handleReplay={handleReplay}
                         vote={vote}
                         setVote={setVote}
+                        sendLastPage={sendLastPage}
                     />
                 );
             case 'classic':
@@ -270,10 +272,17 @@ function StoryPlayer() {
                         handleReplay={handleReplay}
                         storyId={storyId}
                         storyTitle={storyTitle}
+                        sendLastPage={sendLastPage}
                     />
                 );
             case 'extended':
-                return <ExtendedEnding navigate={navigate} handleReplay={handleReplay} />;
+                return (
+                    <ExtendedEnding
+                        navigate={navigate}
+                        handleReplay={handleReplay}
+                        sendLastPage={sendLastPage}
+                    />
+                );
             default:
                 return null;
         }
@@ -307,6 +316,11 @@ function StoryPlayer() {
     }, [story_id]);
 
     useEffect(() => {
+        if (category) setEndingType(category);
+    }, [category]);
+
+
+    useEffect(() => {
         if (pages.length > 0) {
             setCurrentPage(pages[selectedImg]);
         }
@@ -327,6 +341,7 @@ function StoryPlayer() {
 
                 setStoryTitle(response.data.title);
                 setAuthor(response.data.author);
+                setCategory(response.data.category);
             } catch (e) {
                 console.error('동화 제목 조회 실패:', e);
             }
@@ -579,7 +594,6 @@ const StoryImg = styled.div`
     width: 694px;
     height: 390px;
     margin-left: 29px;
-    position: relative;
 
     img {
         width: 100%;
@@ -757,13 +771,12 @@ const PageNum = styled.div`
 
 const TypeContainer = styled.div`
     position: absolute;
-    bottom: 0px;
+    bottom: 16px;
     width: 694px;
-    height: 112px;
+    height: 80px;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 16px;
 `;
 
 const Type = styled.div`

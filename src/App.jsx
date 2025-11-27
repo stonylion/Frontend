@@ -145,10 +145,11 @@ const Root = styled.div`
 `;
 
 const PageWrapper = styled.div`
-width: min(100%, ${({ orientation }) => orientation === 'landscape' ? '798px' : '390px'});
-height: min(100%, ${({ orientation }) => orientation === 'landscape' ? '390px' : '798px'});
+  width: min(100%, ${({ orientation }) => orientation === 'landscape' ? '798px' : '390px'});
+  height: min(100%, ${({ orientation }) => orientation === 'landscape' ? '390px' : '798px'});
 
-  
+  max-width: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   background-color: #fff;
