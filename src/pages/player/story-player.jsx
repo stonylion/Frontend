@@ -757,13 +757,12 @@ const PageNum = styled.div`
 
 const TypeContainer = styled.div`
     position: absolute;
-    bottom: 0px;
+    bottom: 16px;
     width: 694px;
     height: 112px;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 16px;
 `;
 
 const Type = styled.div`
