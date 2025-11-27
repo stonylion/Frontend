@@ -29,12 +29,10 @@ const Endwritestep03 = () => {
 
   const chatEndRef = useRef(null);
 
-  // storyId 없으면 홈으로
   useEffect(() => {
     if (!storyId) navigate("/rewrite_end/");
   }, [storyId, navigate]);
 
-  // 초기 bot 질문
   useEffect(() => {
     setMessages([
       {
@@ -45,7 +43,6 @@ const Endwritestep03 = () => {
     ]);
   }, [questionFromVoice]);
 
-  // 항상 스크롤 아래로
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -57,7 +54,6 @@ const Endwritestep03 = () => {
     const userMsg = inputValue.trim();
     setInputValue("");
 
-    // user 메시지 push
     setMessages((prev) => [...prev, { sender: "user", text: userMsg }]);
 
     try {
@@ -74,7 +70,6 @@ const Endwritestep03 = () => {
 
       setChatId(newChatId);
 
-      // 결말 확장 문구 자동 감지
       const isEndingPrompt =
         botReply?.includes("확장해도") ||
         botReply?.includes("완성해도") ||
@@ -92,7 +87,7 @@ const Endwritestep03 = () => {
         },
       ]);
     } catch (err) {
-      console.error("❌ 채팅 실패:", err);
+      console.error("⚠️ 채팅 실패:", err);
       setMessages((prev) => [
         ...prev,
         { sender: "bot", text: "오류가 발생했어요.", can_finalize: false },
@@ -100,6 +95,78 @@ const Endwritestep03 = () => {
     }
   };
 
+//삽화 job 체크 로직
+  const checkIllustJob = async (jobId) => {
+    try {
+      const statusRes = await api.get(`/api/AI/illustration/job/${jobId}/`);
+      const status = statusRes.data.status;
+
+      console.log("🔄 삽화 job 상태:", status);
+
+      if (status === "SUCCESS") {
+        console.log("🎨 삽화 생성 완료!");
+        return true;
+      }
+
+      if (status === "FAILED") {
+        console.error("⚠️ 삽화 생성 실패:", statusRes.data);
+        return false;
+      }
+
+      // RUNNING → 1.5초 후 다시 확인
+      await new Promise((r) => setTimeout(r, 1500));
+      return await checkIllustJob(jobId);
+
+    } catch (err) {
+      console.error("⚠️ job 조회 오류:", err);
+      return false;
+    }
+  };
+
+ //결말 확장, 삽화 생성, 끝나면 이동하기
+  const handleExpandEnding = async () => {
+    const effectiveChatId = chatId || chatIdFromVoice;
+    if (!effectiveChatId) return;
+
+    setLoading(true);
+
+    try {
+      //결말 확장 API
+      const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
+        chat_id: effectiveChatId,
+      });
+
+      const extendedStory = res.data.extended_story;
+
+      //삽화 생성 job 요청
+      let jobId = null;
+      try {
+        const illustRes = await api.post(`/api/AI/illustration/generate/`, {
+          story_id: storyId,
+        });
+        jobId = illustRes.data.job_id;
+        console.log("🎨 삽화 생성 job 시작:", jobId);
+      } catch (e) {
+        console.error("⚠️ 삽화 생성 실패:", e);
+      }
+
+      // 3) 삽화 job 완료될 때까지 기다림
+      if (jobId) await checkIllustJob(jobId);
+
+      // 4) Step04로 이동
+      navigate("/rewrite_end/step04", {
+        state: {
+          storyId,
+          extendedStory,
+        },
+      });
+
+    } catch (err) {
+      console.error("⚠️ 결말 확장 실패:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleContinueChat = async () => {
     const effectiveChatId = chatId || chatIdFromVoice;
@@ -118,14 +185,9 @@ const Endwritestep03 = () => {
 
       setChatId(newChatId);
 
-      // 결말 유도 문구 감지
       const isEndingPrompt =
-        botReply?.includes("결말") ||
-        botReply?.includes("엔딩") ||
         botReply?.includes("확장해도") ||
-        botReply?.includes("완성해도") ||
-        botReply?.includes("마무리") ||
-        botReply?.includes("엔딩으로");
+        botReply?.includes("완성해도");
 
       const finalFlag = can_finalize || isEndingPrompt;
       setCanFinalize(finalFlag);
@@ -139,31 +201,7 @@ const Endwritestep03 = () => {
         },
       ]);
     } catch (err) {
-      console.error("❌ 더 대화하기 실패:", err);
-    }
-  };
-
-  const handleExpandEnding = async () => {
-    const effectiveChatId = chatId || chatIdFromVoice;
-    if (!effectiveChatId) return;
-
-    setLoading(true);
-
-    try {
-      const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
-        chat_id: effectiveChatId,
-      });
-
-      navigate("/rewrite_end/step04", {
-        state: {
-          storyId,
-          extendedStory: res.data.extended_story,
-        },
-      });
-    } catch (err) {
-      console.error("❌ 결말 확장 실패:", err);
-    } finally {
-      setLoading(false);
+      console.error("⚠️ 더 대화하기 실패:", err);
     }
   };
 
@@ -175,7 +213,6 @@ const Endwritestep03 = () => {
         <img src={CLOSE_ICON} alt="닫기" />
       </CloseBtn>
 
-      {/* 종료 모달 */}
       {open && (
         <Dim onClick={() => setOpen(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
@@ -199,7 +236,6 @@ const Endwritestep03 = () => {
         </Dim>
       )}
 
-      {/* 로딩 */}
       {loading && (
         <LoadingDim>
           <LoadingBox>
@@ -216,7 +252,6 @@ const Endwritestep03 = () => {
         </LoadingDim>
       )}
 
-      {/* 채팅 UI */}
       <ChatContainer>
         {messages.map((msg, idx) => {
           const isLast = idx === messages.length - 1;
@@ -248,7 +283,6 @@ const Endwritestep03 = () => {
         <div ref={chatEndRef} />
       </ChatContainer>
 
-      {/* 입력창 */}
       <InputBar onSubmit={handleSend}>
         <Input
           placeholder="메시지를 입력해주세요"
@@ -266,6 +300,7 @@ const Endwritestep03 = () => {
 
 export default Endwritestep03;
 
+
 const LoadingDim = styled.div`
   position: fixed;
   inset: 0;
@@ -282,7 +317,11 @@ const LoadingBox = styled.div`
   background: #ffffff;
   border-radius: 16px;
   text-align: center;
+  position: relative;
+  justify-content: center;
+  align-items: center;  
 `;
+
 
 const moveLeft = keyframes`
   0%, 100% { transform: translateX(-13px); }
@@ -295,11 +334,14 @@ const moveRight = keyframes`
 `;
 
 const Spinner = styled.div`
-  position: relative;
+  position: absolute;
+  top: 40px;          
+  left: 50%;
+  transform: translateX(-50%);
   width: 64px;
   height: 64px;
-  margin: 0 auto;
 `;
+
 
 const Dot = styled.div`
   position: absolute;

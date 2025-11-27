@@ -50,7 +50,7 @@ const Endwritestep02 = () => {
       setIsAnimating(true);
       console.log("🎙 녹음 시작");
     } catch (err) {
-      console.error("❌ 마이크 권한 오류:", err);
+      console.error("⚠️ 마이크 권한 오류:", err);
     }
   };
 
@@ -68,7 +68,7 @@ const Endwritestep02 = () => {
         recorder.stop();
         recorder.stream.getTracks().forEach((t) => t.stop());
       } catch (err) {
-        console.error("❌ 녹음 종료 오류:", err);
+        console.error("⚠️ 녹음 종료 오류:", err);
       }
     }
 
@@ -108,12 +108,11 @@ const Endwritestep02 = () => {
 
       const isEndingPrompt =
         res.data.text?.includes("확장") ||
-        res.data.text?.includes("확장해도") ||
         res.data.text?.includes("완성해도");
 
       if (isEndingPrompt) setOpenEndingModal(true);
     } catch (err) {
-      console.error("❌ 질문 생성 실패:", err);
+      console.error("⚠️ 질문 생성 실패:", err);
       setQuestion("질문을 불러오지 못했어. 다시 말해줄래?");
     } finally {
       audioChunksRef.current = [];
@@ -133,7 +132,7 @@ const Endwritestep02 = () => {
         },
       });
     } catch (err) {
-      console.error("❌ 결말 확장 실패:", err);
+      console.error("⚠️ 결말 확장 실패:", err);
     }
   };
 
@@ -193,8 +192,14 @@ const Endwritestep02 = () => {
             <EndingTitle>결말을 확장할까요?</EndingTitle>
             <EndingDesc>
               대화가 충분히 진행되었어요!
-              <br />결말을 확장할까요?
+              <br />
+              결말을 확장할까요?
             </EndingDesc>
+            <ModalDotWrapper>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <ModalDot key={i} $delay={i * 0.2} />
+              ))}
+            </ModalDotWrapper>
             <EndingBtnRow>
               <EndingBtnGray onClick={handleContinueVoice}>
                 더 대화하기
@@ -211,9 +216,6 @@ const Endwritestep02 = () => {
 };
 
 export default Endwritestep02;
-
-
-
 
 const bounce = keyframes`
   0%, 100% { transform: translateY(0); opacity: 0.6; }
@@ -332,10 +334,6 @@ const MicButton = styled(IconButton)`
   }
 `;
 
-/* ============================
-      결말 확장 모달 스타일
-============================ */
-
 const EndingDim = styled.div`
   position: fixed;
   top: 0;
@@ -357,8 +355,9 @@ const EndingModal = styled.div`
   padding: 24px 24px 16px 24px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  position: relative;
 `;
 
 const EndingTitle = styled.div`
@@ -374,6 +373,27 @@ const EndingDesc = styled.div`
   text-align: center;
   color: #555;
   line-height: 1.4;
+`;
+
+const ModalDotWrapper = styled.div`
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  z-index: 10;
+`;
+
+const ModalDot = styled.div`
+  width: 8px;
+  height: 8px;
+  background: #c5e384;
+  border-radius: 50%;
+  animation: ${bounce} 1.2s ease-in-out infinite;
+  animation-delay: ${({ $delay }) => $delay}s;
 `;
 
 const EndingBtnRow = styled.div`
@@ -403,4 +423,3 @@ const EndingBtnYellow = styled.button`
   font-weight: 600;
   border: none;
 `;
-

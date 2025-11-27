@@ -47,7 +47,7 @@ const Endwritestep04 = () => {
       return;
     }
 
-    navigate("/story-player", {
+    navigate(`/story-player/${storyId}`, {
       state: {
         book: {
           story: extendedStory,
