@@ -4,31 +4,31 @@ import Header from "../../components/Header.jsx";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
 
+// icons
 const ICON_RIGHT_HEADER = "/icons/new_right_part.svg";
 const ICON_TEXT_RIGHT = "/img/ai_story/right.svg";
-const ICON_RECORD = "/img/ai_story/Record.svg";
-const ICON_PAUSE = "/img/onboarding/record_pause.svg";
-const ICON_AGAIN = "/img/ai_story/again.svg";
-const ICON_CLEAR = "/img/ai_story/clear.svg";
-const ICON_DONE = "/img/ai_story/done.svg";
+const ICON_RECORD = "/img/ai_story/Record.svg"; // idle
+const ICON_RECORD11 = "/img/onboarding/Record11.svg"; // recording
+const ICON_CLEAR = "/img/ai_story/clear.svg"; // processing
 
 const Storystep02 = () => {
   const navigate = useNavigate();
 
-  // idle | recording | select
+  // idle | recording | processing
   const [status, setStatus] = useState("idle");
   const [showQuitModal, setShowQuitModal] = useState(false);
 
-  // STT 기반 텍스트
+  // STT text
   const [fullDraftText, setFullDraftText] = useState("");
   const [viewDraftText, setViewDraftText] = useState("");
 
   const mediaRecorderRef = useRef(null);
   const audioChunks = useRef([]);
 
-  /** 녹음 시작 */
+  /** 1. 녹음 시작 */
   const startRecording = async () => {
     try {
+      console.log("🎤 [녹음 시작] getUserMedia 호출");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       const recorder = new MediaRecorder(stream, {
@@ -39,42 +39,57 @@ const Storystep02 = () => {
       audioChunks.current = [];
 
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.current.push(event.data);
-        }
+        if (event.data.size > 0) audioChunks.current.push(event.data);
       };
 
       recorder.start();
-      console.log("🎙 녹음 시작");
+      console.log("🎙 녹음 시작됨");
     } catch (err) {
-      console.error("녹음 시작 실패:", err);
+      console.error("❌ 녹음 시작 실패:", err);
     }
   };
 
-  /** 녹음 종료 + STT API 호출 */
+  /** 2. 녹음 종료 후 STT 처리 */
   const stopRecording = async () => {
     return new Promise((resolve) => {
       if (!mediaRecorderRef.current) return resolve();
 
       mediaRecorderRef.current.onstop = async () => {
+        console.log("🛑 [녹음 종료] Blob 생성 시작");
+
         try {
           const blob = new Blob(audioChunks.current, { type: "audio/webm" });
+
+          console.log("🧪 Blob Info:", blob.size, blob.type);
 
           const formData = new FormData();
           formData.append("audio", blob, "voice.webm");
 
+          console.log("📡 STT 요청 시작 /api/story/draft_stt/");
+
           const res = await api.post("/api/story/draft_stt/", formData, {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
+            headers: { "Content-Type": "multipart/form-data" },
           });
 
-          setFullDraftText(res.data.draft);
-          setViewDraftText(res.data.draft.slice(0, 79));
+          console.log("🎉 STT 성공:", res.data);
 
-          console.log("🎉 변환 완료:", res.data);
+          const text = res.data.draft || "";
+          setFullDraftText(text);
+          setViewDraftText(text.slice(0, 79));
+
+          console.log("➡ step04로 이동");
+          navigate("/mystory/ai_story/step04", {
+            state: { text },
+          });
         } catch (err) {
-          console.error("STT 오류:", err.response?.data || err);
+          console.error("❌ STT 오류:", {
+            message: err.message,
+            status: err.response?.status,
+            data: err.response?.data,
+          });
+
+          // 실패 시 초기화
+          setStatus("idle");
         }
 
         resolve();
@@ -84,45 +99,45 @@ const Storystep02 = () => {
     });
   };
 
-  /** 마이크 버튼 */
+  /** 단일 버튼 클릭 로직 */
   const handleMicClick = async () => {
+    console.log("👉 버튼 클릭, 현재 상태:", status);
+
     if (status === "idle") {
       startRecording();
       setStatus("recording");
-    } else if (status === "recording") {
+      return;
+    }
+    if (status === "recording") {
+      setStatus("processing");
       await stopRecording();
-      setStatus("select");
+      return;
+    }
+
+    if (status === "processing") {
+      console.log("⏳ STT 처리 중. 버튼 동작 없음.");
+      return;
     }
   };
 
-  /** 다시 녹음 */
-  const handleAgain = () => {
-    setStatus("idle");
-    setFullDraftText("");
-    setViewDraftText("");
-  };
-
-  /** 다음 */
-  const handleDone = () => {
-    navigate("/mystory/ai_story/step04", {
-      state: { text: fullDraftText },
-    });
-  };
-
+  /** 화면에 보여줄 텍스트 */
   const renderArcTexts = () => {
-    if ((status === "recording" || status === "select") && viewDraftText)
-      return <ArcText>{viewDraftText}</ArcText>;
-
     if (status === "recording")
       return <ArcText>버튼을 눌러 말하기를 멈출 수 있어요.</ArcText>;
 
-    if (status === "select")
-      return <ArcText>에피소드 음성 입력이 완료되었어요.</ArcText>;
+    if (status === "processing")
+      return <ArcText>음성을 분석 중이에요. 잠시만 기다려주세요…</ArcText>;
 
     return <ArcText>조용한 곳에서 또박또박 말씀해주세요.</ArcText>;
   };
 
-  const statusIcon = status === "idle" ? ICON_RECORD : ICON_PAUSE;
+  /** 버튼 아이콘 */
+  const statusIcon =
+    status === "idle"
+      ? ICON_RECORD
+      : status === "recording"
+      ? ICON_RECORD11
+      : ICON_CLEAR;
 
   return (
     <Screen>
@@ -157,28 +172,9 @@ const Storystep02 = () => {
         <Arc />
         <ArcTexts>{renderArcTexts()}</ArcTexts>
 
-        {(status === "idle" || status === "recording") && (
-          <MicButton onClick={handleMicClick}>
-            <img src={statusIcon} width="64" />
-          </MicButton>
-        )}
-
-        {status === "select" && (
-          <ControlRow>
-            <ControlBtn onClick={handleAgain}>
-              <img src={ICON_AGAIN} width="64" />
-            </ControlBtn>
-
-            <ControlBtnDisabled>
-              <div className="bg" />
-              <img src={ICON_CLEAR} width="64" />
-            </ControlBtnDisabled>
-
-            <ControlBtn onClick={handleDone}>
-              <img src={ICON_DONE} width="64" />
-            </ControlBtn>
-          </ControlRow>
-        )}
+        <MicButton onClick={handleMicClick}>
+          <img src={statusIcon} width="64" />
+        </MicButton>
       </ArcArea>
 
       {showQuitModal && (
@@ -282,7 +278,7 @@ const Arc = styled.div`
 
 const ArcTexts = styled.div`
   position: absolute;
-  bottom: 176px;
+  bottom: 220px;
   left: 50%;
   transform: translateX(-50%);
   width: 320px;
@@ -303,40 +299,6 @@ const MicButton = styled.button`
   border: none;
   background: transparent;
   cursor: pointer;
-`;
-
-const ControlRow = styled.div`
-  position: absolute;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 40px;
-`;
-
-const ControlBtn = styled(MicButton)`
-  cursor: pointer;
-`;
-
-const ControlBtnDisabled = styled(MicButton)`
-  position: relative;
-  width: 64px;
-  height: 64px;
-  pointer-events: none;
-  cursor: default;
-
-  .bg {
-    position: absolute;
-    inset: 0;
-    background: #c5e384;
-    border-radius: 50%;
-    z-index: 1;
-  }
-
-  img {
-    position: relative;
-    z-index: 2;
-  }
 `;
 
 const Dim = styled.div`
