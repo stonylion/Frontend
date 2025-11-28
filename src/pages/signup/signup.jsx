@@ -110,8 +110,8 @@ function Signup() {
                 />
                 <ShowButton onClick={() => setShowPw(prev => !prev)}>
                     {showPw 
-                        ? <img src="/icons/noshowimg.svg" />
-                        : <img src="/icons/showimg.svg" />
+                        ? <img src="/icons/showimg.svg" />
+                        : <img src="/icons/noshowimg.svg" />
                     }
                 </ShowButton>
                 </PwWrapper>
@@ -130,8 +130,8 @@ function Signup() {
                 />
                 <ShowButton onClick={() => setShowPwConfirm(prev => !prev)}>
                     {showPwConfirm
-                        ? <img src="/icons/noshowimg.svg" />
-                        : <img src="/icons/showimg.svg" />
+                        ? <img src="/icons/showimg.svg" />
+                        : <img src="/icons/noshowimg.svg" />
                     }
                 </ShowButton>
                 </PwWrapper>
