@@ -161,6 +161,7 @@ function StoryPlayer() {
     const [storyTitle, setStoryTitle] = useState(null);
     const [author, setAuthor] = useState(null);
     const [category, setCategory] = useState('classic');
+    const [previewAudio, setPreviewAudio] = useState(null);
     const isLastPage = selectedImg === pages.length - 1;
 
     // 🍅 Mylib에서 온 story.category 기준으로 endingType 설정: 결말 확장에서 필요
@@ -249,6 +250,11 @@ function StoryPlayer() {
         setShowEndingOverlay(false);
         setTypeOn(false);
         setPlayOn(false);
+        setIsAutoPlay(false);
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
     };
 
     const renderEndingOverlay = () => {
@@ -288,14 +294,6 @@ function StoryPlayer() {
         }
     };
 
-    const togglePlay = () => {
-        if (playOn) {
-            handleStopVoice();
-        } else {
-            handleStartVoice();
-        }
-    };
-
     useEffect(() => {
         const fetchStory  = async () => {
             try {
@@ -319,13 +317,11 @@ function StoryPlayer() {
         if (category) setEndingType(category);
     }, [category]);
 
-
     useEffect(() => {
         if (pages.length > 0) {
             setCurrentPage(pages[selectedImg]);
         }
     }, [selectedImg, pages]);
-
 
     useEffect(() => {
         if (isAutoPlay && selectedVoice && currentPage) {
@@ -349,55 +345,65 @@ function StoryPlayer() {
         fetchTitle();
     }, [story_id]);
 
-    const handleSelectedVoice = async (voice) => {
-        if (!currentPage) return;
+    useEffect(() => {
+        if (step >= 2) {
+            setTypeOn(true);
+        } else {
+            setTypeOn(false);
+        }
+    }, [step]);
+
+    const togglePlay = () => {
+        if (playOn) {
+            handleStopVoice();
+        } else {
+            handleStartVoice();
+        }
+    };
+
+    const playTTS = async () => {
+        if (!selectedVoice || !storyTitle || !author || pages.length === 0) return;
+
+        const payload = {
+            voice_id: selectedVoice.id,
+            title: storyTitle,
+            author: author,
+            pages: pages.map((p, idx) => ({
+                page: idx + 1,
+                text: p.type
+            }))
+        };
 
         try {
-
-            const payload = {
-                title: storyTitle,
-                author: author,
-                pages: pages.map((p, index) => ({
-                    page: index + 1,
-                    text: p.type
-                }))
-            }
-
-            console.log("전송 payload:", payload);
-
             const response = await api.post('/api/story/user/voice/tts/', payload);
-            setSelectedVoice({ ...voice, audio: response.data.audio_url });
-            console.log('TTS 생성 성공:', response.data.tts_audio_urls);
-        } catch (e) {
-            console.error('tts 음성 파일 생성 실패:', e);
-        }
-    };
-
-    const handleStartVoice = () => {
-        if(!selectedVoice || !currentPage) return;
-        setPlayOn(true);
-        setIsAutoPlay(true);
-        playVoice(currentPage.text);
-    };
-
-    const playVoice = (text) => {
-        if (!selectedVoice) return;
-
-        // 이미 재생 중인 오디오가 있으면
-        if (audioRef.current) {
-            audioRef.current.onended = null;
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-
-        const audio = new Audio(selectedVoice.audio);
-        audioRef.current = audio;
-
-        audio.play().catch(err => {
-            if (err.name !== 'AbortError') {
-                console.error('재생 실패:', err);
+            const audio = new Audio(response.data.audio_url);
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
             }
+            audioRef.current = audio;
+            audio.play().catch(err => {
+                if (err.name !== 'AbortError') console.error(err);
+            });
+            setPlayOn(true);
+            setIsAutoPlay(true);
+        } catch (err) {
+            console.error('TTS 재생 요청 실패:', err);
+        }
+    };
+
+    const handlePreviewVoice = (voice) => {
+        if (previewAudio) {
+            previewAudio.pause();
+            previewAudio.currentTime = 0;
+        }
+
+        const audio = new Audio(voice.audio);
+        audio.play().catch(err => {
+            if (err.name !== 'AbortError') console.error(err);
         });
+
+        setPreviewAudio(audio);
     };
 
     const handleStopVoice = () => {
@@ -407,6 +413,55 @@ function StoryPlayer() {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
         }
+    };
+
+
+const handleSelectedVoice = (voice) => {
+    // 모달 안에서 미리듣기
+    if (!currentPage) return;
+
+    // 기존 재생 종료
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+    }
+
+    // 새로운 음성 재생
+    const audio = new Audio(voice.audio);
+    audioRef.current = audio;
+    audio.play().catch(err => {
+        if (err.name !== 'AbortError') console.error(err);
+    });
+
+    // 선택한 목소리 저장
+    setSelectedVoice(voice);
+};
+
+// 모달 닫힐 때 미리듣기 멈추기
+    useEffect(() => {
+        if (!voiceModal && previewAudio) {
+            previewAudio.pause();
+            previewAudio.currentTime = 0;
+            setPreviewAudio(null);
+        }
+    }, [voiceModal]);
+
+    const handleStartVoice = () => {
+        if(!selectedVoice || !currentPage) return;
+
+        setPlayOn(true);
+        setIsAutoPlay(true);
+
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+
+        const audio = new Audio(selectedVoice.audio);
+        audioRef.current = audio;
+        audio.play().catch(err => {
+            if (err.name !== 'AbortError') console.error(err);
+        });
     };
 
     const sendLastPage = async () => {
@@ -420,6 +475,12 @@ function StoryPlayer() {
             console.error('마지막 페이지 전송 실패:', e);
         }
     };
+
+    useEffect(() => {
+        if (isAutoPlay && selectedVoice && currentPage) {
+            playTTS();
+        }
+    }, [currentPage]);
 
     return (
         <Wrapper onClick={handleTap}>
@@ -472,10 +533,10 @@ function StoryPlayer() {
                         <RightButtons onClick={(e) => e.stopPropagation()}>
                             <BtnContainer onClick={() => setTypeOn(!typeOn)}>
                                 <img
-                                    src={typeOn ? '/icons/type-off.svg' : '/icons/type-on.svg'}
+                                    src={typeOn ? '/icons/type-on.svg' : '/icons/type-off.svg'}
                                     width={24}
                                 />
-                                {typeOn ? '자막끄기' : '자막켜기'}
+                                {typeOn ? '자막켜기' : '자막끄기'}
                             </BtnContainer>
                             <BtnContainer onClick={voiceClick}>
                                 <img
@@ -536,7 +597,7 @@ function StoryPlayer() {
                                             <img
                                                 src='/icons/preview-play.svg'
                                                 width={20}
-                                                onClick={() => handleSelectedVoice(v)}
+                                                onClick={() => handlePreviewVoice(v)}
                                             />
                                         </RightVoice>
                                     </VoiceSelect>
@@ -555,9 +616,7 @@ function StoryPlayer() {
                             <VoiceBtn
                                 onClick={() => {
                                     setVoiceModal(false);
-                                    if (selectedVoice && currentPage) {
-                                        handleStartVoice();
-                                    }
+                                    if (selectedVoice && currentPage) playTTS();
                                 }}
                             >
                                 확인
@@ -590,6 +649,7 @@ const VoiceBtn = styled.button`
     font-size: 14px;
     font-weight: 800;
 `
+
 const StoryImg = styled.div`
     width: 694px;
     height: 390px;
@@ -792,7 +852,7 @@ const Type = styled.div`
     overflow: hidden;
 
     color: #fff;
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 800;
     line-height: 32px;
     text-align: center;
@@ -822,6 +882,7 @@ const VoiceContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 16px;
+    margin-bottom: 6px;
 `;
 
 const VoiceSelect = styled.div`

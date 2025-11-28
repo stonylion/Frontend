@@ -15,9 +15,79 @@ function MypageKidDetail() {
         child4: '/icons/avatar4.svg',
     };
 
-    const NDWMap = {
-        
+    const NDWCardMap = {
+        1: '/icons/report-card1.svg',
+        2: '/icons/report-card2.svg',
+        3: '/icons/report-card3.svg',
+    };
+
+    const [kids, setKids] = useState([
+        {
+            id: 1,
+            NDWCard: 2,
+            WordCount: 30,
+            topWords: [
+                { id: 1, word: '행복해', count: 12},
+                { id: 2, word: '공룡', count: 10},
+                { id: 3, word: '마법', count: 9},
+                { id: 4, word: '숲', count: 8},
+                { id: 5, word: '모험', count: 7},
+            ]
+        }
+    ]);
+
+    const WordPositions = [
+        { top: '109px', left: '74px', width: '44px', height: '64px', color: '#FF8041', wordSize: '16px', countSize: '30px' },
+        { top: '58px', left: '168px', width: '66px', height: '57px', color: '#FFC400', wordSize: '14px', countSize: '27px' },
+        { top: '165px', left: '177px', width: '35px', height: '51px', color: '#A3D73D', wordSize: '12px', countSize: '24px' },
+        { top: '125px', left: '265px', width: '31px', height: '45px', color: '#26C3C6', wordSize: '11px', countSize: '21px' },
+        { top: '19px', left: '105px', width: '26px', height: '38px', color: '#4EA5D7', wordSize: '9px', countSize: '18px' },
+    ];
+
+    const neoMockData = [
+    {
+        id: 1,
+        trait: "외향성(E)",
+        level: "높음",
+        details: [
+            {
+                label: "사회성",
+                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
+            },
+            {
+                label: "리더십",
+                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
+            }
+        ]
+    },
+    {
+        id: 2,
+        trait: "친화성(A)",
+        level: "중간",
+        details: [
+            {
+                label: "협동성",
+                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
+            },
+            {
+                label: "이타성",
+                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
+            }
+        ]
+    },
+    {
+        id: 3,
+        trait: "성실성(C)",
+        level: "낮음",
+        details: [
+            {
+                label: "계획성",
+                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
+            }
+        ]
     }
+];
+
 
     const [goodStories, setGoodStories] = useState([
     {
@@ -66,6 +136,7 @@ const [badStories, setBadStories] = useState([
         created_at: "2025-11-22"
     }
 ]);
+
     const [nickname, setNickname] = useState('');
     const [birth, setBirth] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState(avatarMap.child1);
@@ -73,6 +144,7 @@ const [badStories, setBadStories] = useState([
     const [activeGoodStoryId, setActiveGoodStoryId] = useState(null);
     const [activeBadStoryId, setActiveBadStoryId] = useState(null);
     const [deleteTarget, setDeleteTarget] =useState(null);
+    const [neoOpen, setNeoOpen] = useState(false);
 
     const handleEdit = () => {
         navigate(`/mypage-kid/${child_id}`);
@@ -157,6 +229,8 @@ const [badStories, setBadStories] = useState([
         fetchMypageKid();
     }, [child_id]);
 
+    const toggleNeo = () => setNeoOpen(prev => !prev);
+
     return (
         <Wrapper>
         <Header
@@ -230,10 +304,33 @@ const [badStories, setBadStories] = useState([
                     <img src='/imges/pentagon1.svg' />
                 </Pentagon>
                 <AnalysisComent>AI가 아이의 대화 내용을 분석해 산출한 참고용 결과로,<br />보다 정확한 성격 검사를 원할 시, 정식 검사를 권장드립니다.</AnalysisComent>
-                <DetailLabel>
+                <DetailLabel onClick={toggleNeo}>
                     상세 분석
-                    <img src='/icons/arrow-down.svg' width={16} />
+                    <img 
+                        src={neoOpen ? '/icons/arrow-up.svg' : '/icons/arrow-down.svg'} 
+                        width={16} 
+                    />
                 </DetailLabel>
+                {neoOpen && (
+                    <Detail>
+                        {neoMockData.map(item => (
+                        <Box key={item.id}>
+                            <Label>
+                                {item.trait}
+                                <Badge>{item.level}</Badge>
+                            </Label>
+                            {item.details.map((d, idx) => (
+                            <NEOcontent key={idx}>
+                                <NEOcontents>
+                                    <ContentsLabel>{d.label}</ContentsLabel>
+                                    <NEOcontentstext>{d.text}</NEOcontentstext>
+                                </NEOcontents>
+                            </NEOcontent>
+                            ))}
+                        </Box>
+                        ))}
+                    </Detail>
+                )}
                 <Line></Line>
             </NEO>
 
@@ -244,15 +341,15 @@ const [badStories, setBadStories] = useState([
                     <span>결과예요</span>
                 </ResultLabel>
                 <ResultCard>
-                    <img src='/icons/report-card1.svg' />
+                    <img src={NDWCardMap[kids[0].NDWCard]} />
                 </ResultCard>
                 <WordProgress>
                     <ReportLabel>고유 단어 사용률(NDW)</ReportLabel>
                     <WordProgressBar>
-                        <WordProgressFill style={{ width: '58%' }}></WordProgressFill>
+                        <WordProgressFill style={{ width: `${(kids[0].WordCount / 100) * 100}%` }}></WordProgressFill>
                     </WordProgressBar>
                     <WordCount>
-                        <p>58개</p>
+                        <p>{kids[0].WordCount}개</p>
                         <p style={{ color: '#bbb' }}>100개</p>
                     </WordCount>
                     <WordLabel>
@@ -262,7 +359,28 @@ const [badStories, setBadStories] = useState([
                 </WordProgress>
                 <WordTop5>
                     <ReportLabel>한 달 동안 가장 많이 사용한 단어 Top 5</ReportLabel>
-                    <Circle></Circle>
+                    <Circle>
+                        <img
+                            src='/icons/circle-5.svg'
+                            style={{ position: 'relative' }}
+                        />
+                        {kids[0].topWords.map((word, index) => (
+                            <CircleContents
+                                key={word.id}
+                                style={{
+                                    top: WordPositions[index].top,
+                                    left: WordPositions[index].left,
+                                    width: WordPositions[index].width,
+                                    height: WordPositions[index].height,
+                                    color: WordPositions[index].color,
+                                    position: 'absolute',
+                                }}
+                            >
+                                <WordCircle fontSize={WordPositions[index].wordSize}>{word.word}</WordCircle>
+                                <WordCountCircle fontSize={WordPositions[index].countSize}>{word.count}</WordCountCircle>
+                            </CircleContents>
+                        ))}
+                    </Circle>
                     <AnalysisComent>NDW란 고유 단어의 수로, 아이의 발화 중 중복을 제외한<br />유일한 단어의 수를 세어 어휘의 다양성을 측정하는 기준입니다.</AnalysisComent>
                 </WordTop5>
                 <Line style={{ marginTop: '32px'}} ></Line>
@@ -652,6 +770,7 @@ const WordTop5 = styled.div`
 const Circle = styled.div`
     width: 358px;
     height: 240px;
+    position: relative;
 `
 
 const Custom = styled.div`
@@ -865,4 +984,101 @@ const ConfirmBtn = styled.button`
     font-size: 14px;
     font-weight: 800;
     cursor: pointer;
+`
+
+const WordCircle = styled.div`
+    text-align: center;
+    font-size: ${({ fontSize }) => fontSize || '16px'};
+    font-weight: 700;
+    line-height: 24px;
+    justify-content: center;
+    align-items: center;
+`
+
+const WordCountCircle = styled.div`
+    text-align: center;
+    font-size: ${({ fontSize }) => fontSize || '30px'};
+    font-weight: 800;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+`
+const CircleContents = styled.div`
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+`
+const Detail = styled.div`
+    height: 1606px;
+    width: 358px;
+    display: flex;
+padding: 16px;
+flex-direction: column;
+align-items: flex-start;
+gap: 64px;
+align-self: stretch;
+border-radius: 16px;
+background: rgba(246, 246, 246, 0.40);
+`
+
+const Box = styled.div`
+    width: 242px;
+    gap: 24px;
+    display: flex;
+    flex-direction: column;
+`
+
+const NEOcontent = styled.div`
+    width: 242px;
+    
+`
+const Label = styled.div`
+    display: flex;
+    gap: 8px;
+    color: #000;
+    text-align: center;
+    font-family: "SOYO Maple TTF";
+    font-size: 20px;
+    font-weight: 700;
+`
+
+const Badge = styled.div`
+    display: flex;
+height: 24px;
+padding: 4px 10px;
+justify-content: center;
+align-items: center;
+gap: 6px;
+text-align: center;
+font-family: NanumSquareRound;
+font-size: 12px;
+font-weight: 800;
+`
+
+const NEOcontents = styled.div`
+    width: 326px;
+    display: flex;
+    gap: 8px;
+`
+
+const ContentsLabel = styled.div`
+    display: flex;
+width: 72px;
+padding: 4px 10px;
+justify-content: center;
+align-items: center;
+gap: 10px;
+border-radius: 8px;
+background: #F1F1F1;
+`
+
+const NEOcontentstext = styled.div`
+    width: 242px;
+    min-height: 44px;
+flex: 1 0 0;
+color:  #393939;
+
+font-family: NanumSquareRound;
+font-size: 14px;
+font-weight: 400;
 `
