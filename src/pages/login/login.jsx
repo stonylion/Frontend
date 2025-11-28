@@ -1,4 +1,4 @@
-import api from '../../api/axios';
+import api from '../../api/axios.js';
 import Header from '../../components/Header';
 import styled, { css } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,7 @@ function Login() {
 
     const handleLogin = async () => {
         try {
-            const response = await api.post('api/accounts/login/', {
+            const response = await api.post('/api/accounts/login/', {
                 username: id,
                 password: pw
             });

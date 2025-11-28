@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import styled, { keyframes, css } from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
 import api from "../../api/axios.js";
@@ -24,17 +24,12 @@ const Endwritestep03 = () => {
   const [chatId, setChatId] = useState(chatIdFromVoice);
   const [canFinalize, setCanFinalize] = useState(false);
 
-  const [open, setOpen] = useState(false);
+  const [openExit, setOpenExit] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef(null);
 
-  // storyId 없으면 홈으로
-  useEffect(() => {
-    if (!storyId) navigate("/rewrite_end/");
-  }, [storyId, navigate]);
-
-  // 초기 bot 질문
+  // 처음 로딩 시 첫 메시지
   useEffect(() => {
     setMessages([
       {
@@ -45,11 +40,12 @@ const Endwritestep03 = () => {
     ]);
   }, [questionFromVoice]);
 
-  // 항상 스크롤 아래로
+  // 스크롤 맨 아래로 고정
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // 메시지 전송
   const handleSend = async (e) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
@@ -57,7 +53,7 @@ const Endwritestep03 = () => {
     const userMsg = inputValue.trim();
     setInputValue("");
 
-    // user 메시지 push
+    // 유저 메시지 추가
     setMessages((prev) => [...prev, { sender: "user", text: userMsg }]);
 
     try {
@@ -74,7 +70,6 @@ const Endwritestep03 = () => {
 
       setChatId(newChatId);
 
-      // 결말 확장 문구 자동 감지
       const isEndingPrompt =
         botReply?.includes("확장해도") ||
         botReply?.includes("완성해도") ||
@@ -92,7 +87,7 @@ const Endwritestep03 = () => {
         },
       ]);
     } catch (err) {
-      console.error("❌ 채팅 실패:", err);
+      console.error("⚠️ 채팅 실패:", err);
       setMessages((prev) => [
         ...prev,
         { sender: "bot", text: "오류가 발생했어요.", can_finalize: false },
@@ -100,49 +95,7 @@ const Endwritestep03 = () => {
     }
   };
 
-
-  const handleContinueChat = async () => {
-    const effectiveChatId = chatId || chatIdFromVoice;
-    if (!effectiveChatId) return;
-
-    try {
-      const res = await api.post(
-        `/api/AI/stories/${storyId}/extend-chat/stream/`,
-        {
-          chat_id: effectiveChatId,
-          action: "continue",
-        }
-      );
-
-      const { text: botReply, chat_id: newChatId, can_finalize } = res.data;
-
-      setChatId(newChatId);
-
-      // 결말 유도 문구 감지
-      const isEndingPrompt =
-        botReply?.includes("결말") ||
-        botReply?.includes("엔딩") ||
-        botReply?.includes("확장해도") ||
-        botReply?.includes("완성해도") ||
-        botReply?.includes("마무리") ||
-        botReply?.includes("엔딩으로");
-
-      const finalFlag = can_finalize || isEndingPrompt;
-      setCanFinalize(finalFlag);
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: "bot",
-          text: botReply,
-          can_finalize: finalFlag,
-        },
-      ]);
-    } catch (err) {
-      console.error("❌ 더 대화하기 실패:", err);
-    }
-  };
-
+  // 결말 확장
   const handleExpandEnding = async () => {
     const effectiveChatId = chatId || chatIdFromVoice;
     if (!effectiveChatId) return;
@@ -161,9 +114,41 @@ const Endwritestep03 = () => {
         },
       });
     } catch (err) {
-      console.error("❌ 결말 확장 실패:", err);
+      console.error("⚠️ 결말 확장 실패:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 더 대화하기
+  const handleContinueChat = async () => {
+    const effectiveChatId = chatId || chatIdFromVoice;
+    if (!effectiveChatId) return;
+
+    try {
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/stream/`,
+        {
+          chat_id: effectiveChatId,
+          action: "continue",
+        }
+      );
+
+      const { text, chat_id: newChatId, can_finalize } = res.data;
+      setChatId(newChatId);
+
+      const isEndingPrompt =
+        text?.includes("확장해도") || text?.includes("완성해도");
+
+      const finalFlag = can_finalize || isEndingPrompt;
+      setCanFinalize(finalFlag);
+
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text, can_finalize: finalFlag },
+      ]);
+    } catch (err) {
+      console.error("⚠️ 더 대화하기 실패:", err);
     }
   };
 
@@ -171,75 +156,33 @@ const Endwritestep03 = () => {
     <Screen>
       <Header title="채팅" showBack={false} />
 
-      <CloseBtn onClick={() => setOpen(true)}>
+      <CloseBtn onClick={() => setOpenExit(true)}>
         <img src={CLOSE_ICON} alt="닫기" />
       </CloseBtn>
 
-      {/* 종료 모달 */}
-      {open && (
-        <Dim onClick={() => setOpen(false)}>
-          <Modal onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>앗! 그만두시겠어요?</ModalTitle>
-            <ModalDesc>
-              아직 대화를 완성하기엔 대화가 부족해요.
-              <br />
-              나가면 지금까지의 대화를 되돌릴 수 없어요.
-            </ModalDesc>
-
-            <BtnRow>
-              <ModalBtnGray onClick={() => navigate("/rewrite_end/")}>
-                나가기
-              </ModalBtnGray>
-
-              <ModalBtnYellow onClick={() => setOpen(false)}>
-                계속 대화하기
-              </ModalBtnYellow>
-            </BtnRow>
-          </Modal>
-        </Dim>
-      )}
-
-      {/* 로딩 */}
-      {loading && (
-        <LoadingDim>
-          <LoadingBox>
-            <Spinner>
-              <Dot1 />
-              <Dot2 />
-            </Spinner>
-            <LoadingText>
-              결말을 확장하고 있어요!
-              <br />
-              잠시만 기다려주세요
-            </LoadingText>
-          </LoadingBox>
-        </LoadingDim>
-      )}
-
-      {/* 채팅 UI */}
+      {/* 채팅 영역 */}
       <ChatContainer>
         {messages.map((msg, idx) => {
-          const isLast = idx === messages.length - 1;
           const isBot = msg.sender === "bot";
+          const isUser = msg.sender === "user";
+          const isLast = idx === messages.length - 1;
 
           return (
             <div key={idx}>
-              <MessageRow $isUser={msg.sender === "user"}>
+              <MessageRow $isUser={isUser}>
                 {isBot && <ProfileIcon src={PROFILE} alt="bot" />}
-                <MessageBubble $isUser={msg.sender === "user"}>
-                  {msg.text}
-                </MessageBubble>
+                <MessageBubble $isUser={isUser}>{msg.text}</MessageBubble>
               </MessageRow>
 
               {isBot && isLast && msg.can_finalize && (
-                <ButtonWrapper>
+                <BottomButtonWrapper>
                   <EndButton onClick={handleExpandEnding}>
                     결말 확장하기
                   </EndButton>
-                  <EndButton onClick={handleContinueChat}>
+                  <EndButtonGray onClick={handleContinueChat}>
                     더 대화하기
-                  </EndButton>
-                </ButtonWrapper>
+                  </EndButtonGray>
+                </BottomButtonWrapper>
               )}
             </div>
           );
@@ -248,7 +191,6 @@ const Endwritestep03 = () => {
         <div ref={chatEndRef} />
       </ChatContainer>
 
-      {/* 입력창 */}
       <InputBar onSubmit={handleSend}>
         <Input
           placeholder="메시지를 입력해주세요"
@@ -260,78 +202,52 @@ const Endwritestep03 = () => {
           <img src={isFocused ? SEND : RECORD} alt="send" />
         </RecordBtn>
       </InputBar>
+      {loading && (
+        <LoadingDim>
+          <LoadingModal>
+            <DotRow>
+              <Dot />
+              <Dot />
+              <Dot />
+            </DotRow>
+
+            <LoadingTitle>결말을 확장하고 있어요!</LoadingTitle>
+            <LoadingDesc>잠시만 기다려주세요</LoadingDesc>
+          </LoadingModal>
+        </LoadingDim>
+      )}
+
+      {/* 나가기 모달 */}
+      {openExit && (
+        <ExitDim onClick={() => setOpenExit(false)}>
+          <ExitModal onClick={(e) => e.stopPropagation()}>
+            <ExitTitle>앗! 그만두시겠어요?</ExitTitle>
+            <ExitDesc>
+              아직 대화를 완성하기엔 대화가 부족해요.
+              <br />
+              나가면 지금까지의 대화를 되돌릴 수 없어요.
+            </ExitDesc>
+            <ExitBtnRow>
+              <ExitBtnGray onClick={() => navigate("/rewrite_end/")}>
+                나가기
+              </ExitBtnGray>
+              <ExitBtnYellow onClick={() => setOpenExit(false)}>
+                계속 대화하기
+              </ExitBtnYellow>
+            </ExitBtnRow>
+          </ExitModal>
+        </ExitDim>
+      )}
     </Screen>
   );
 };
 
 export default Endwritestep03;
 
-const LoadingDim = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-`;
-
-const LoadingBox = styled.div`
-  width: 280px;
-  padding: 24px 20px;
-  background: #ffffff;
-  border-radius: 16px;
-  text-align: center;
-`;
-
-const moveLeft = keyframes`
-  0%, 100% { transform: translateX(-13px); }
-  50% { transform: translateX(13px); }
-`;
-
-const moveRight = keyframes`
-  0%, 100% { transform: translateX(13px); }
-  50% { transform: translateX(-13px); }
-`;
-
-const Spinner = styled.div`
-  position: relative;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto;
-`;
-
-const Dot = styled.div`
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-`;
-
-const Dot1 = styled(Dot)`
-  background-color: #efefef;
-  animation: ${moveLeft} 1.3s ease-in-out infinite;
-`;
-
-const Dot2 = styled(Dot)`
-  background-color: #ffd342;
-  animation: ${moveRight} 1.3s ease-in-out infinite;
-`;
-
-const LoadingText = styled.p`
-  margin-top: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 22px;
-  color: #000;
-`;
-
 const Screen = styled.div`
   position: relative;
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: #fff;
   overflow: hidden;
 `;
 
@@ -339,10 +255,9 @@ const CloseBtn = styled.button`
   position: absolute;
   top: 24px;
   right: 24px;
-  background: transparent;
+  background: none;
   border: none;
   cursor: pointer;
-
   img {
     width: 20px;
     height: 20px;
@@ -356,29 +271,18 @@ const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 14px;
-  &::-webkit-scrollbar {
-    display: none;
-  }
 `;
 
 const MessageRow = styled.div`
   display: flex;
+  align-items: flex-start;
   gap: 8px;
-  ${({ $isUser }) =>
-    $isUser &&
-    css`
-      justify-content: flex-end;
-    `}
+  justify-content: ${({ $isUser }) => ($isUser ? "flex-end" : "flex-start")};
 `;
 
 const ProfileIcon = styled.img`
   width: 32px;
   height: 32px;
-`;
-
-const appear = keyframes`
-  0% { opacity: 0; transform: translateY(6px); }
-  100% { opacity: 1; transform: translateY(0); }
 `;
 
 const MessageBubble = styled.div`
@@ -388,17 +292,36 @@ const MessageBubble = styled.div`
   font-size: 14px;
   line-height: 22px;
   white-space: pre-wrap;
-  animation: ${appear} 0.25s ease-out both;
-  ${({ $isUser }) =>
-    $isUser
-      ? css`
-          background: #f5f5f5;
-          color: #000;
-        `
-      : css`
-          background: #ffffff;
-          color: #3a372f;
-        `}
+  animation: fadeIn 0.2s ease-out;
+
+  background: ${({ $isUser }) => ($isUser ? "#f5f5f5" : "#ffffff")};
+  color: ${({ $isUser }) => ($isUser ? "#000" : "#3a372f")};
+`;
+
+const BottomButtonWrapper = styled.div`
+  display: flex;
+  justify-content: flex-start;
+  margin-left: 40px;
+  margin-top: 6px;
+  gap: 8px;
+`;
+
+const EndButton = styled.button`
+  padding: 6px 16px;
+  border-radius: 99px;
+  border: 1px solid #e7e7e7;
+  background: #e7e7e7;
+  font-size: 13px;
+  cursor: pointer;
+`;
+
+const EndButtonGray = styled.button`
+  padding: 6px 16px;
+  border-radius: 99px;
+  background: #e7e7e7;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
 `;
 
 const InputBar = styled.form`
@@ -419,105 +342,117 @@ const Input = styled.input`
   border: none;
   padding: 0 16px;
   background: #f5f5f5;
-  &:focus {
-    background: #eeeeee;
-  }
 `;
 
 const RecordBtn = styled.button`
-  background: transparent;
+  background: none;
   border: none;
   margin-left: 12px;
-  cursor: pointer;
   img {
     width: 40px;
     height: 40px;
   }
 `;
 
-const ButtonWrapper = styled.div`
-  display: flex;
-  gap: 8px;
-  margin: 8px 0 0 40px;
+const bounce = keyframes`
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-6px); opacity: 1; }
 `;
 
-const EndButton = styled.button`
+const LoadingDim = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
-  height: 34px;
-  padding: 0 16px;
-  justify-content: center;
   align-items: center;
-  border-radius: 999px;
-  border: 1px solid #f1f1f1;
-  background: #ffffff;
-  font-size: 13px;
-  cursor: pointer;
-`;
-
-const Dim = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 390px;
-  height: 852px;
-  background-color: rgba(0, 0, 0, 0.4);
-  display: flex;
   justify-content: center;
-  align-items: center;
-  z-index: 999;
+  z-index: 3000;
 `;
 
-const Modal = styled.div`
-  width: 320px;
-  height: 196px;
-  padding: 24px 24px 16px 24px;
+const LoadingModal = styled.div`
+  width: 300px;
+  padding: 24px;
   background: #fff;
   border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  justify-content: center;
-  align-items: center;
-`;
-
-const ModalTitle = styled.h3`
-  font-size: 20px;
-  font-weight: 800;
-  margin-bottom: 8px;
-`;
-
-const ModalDesc = styled.p`
-  font-size: 14px;
-  line-height: 22px;
-  margin-bottom: 16px;
   text-align: center;
 `;
 
-const BtnRow = styled.div`
+const DotRow = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+`;
+
+const Dot = styled.div`
+  width: 10px;
+  height: 10px;
+  background: #ffd342;
+  border-radius: 50%;
+  animation: ${bounce} 1s infinite;
+`;
+
+const LoadingTitle = styled.div`
+  margin-top: 14px;
+  font-size: 16px;
+  font-weight: 700;
+`;
+
+const LoadingDesc = styled.div`
+  margin-top: 4px;
+  font-size: 13px;
+  color: #777;
+`;
+
+const ExitDim = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ExitModal = styled.div`
+  width: 320px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 24px 28px 24px;
+  text-align: center;
+`;
+
+const ExitTitle = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+`;
+
+const ExitDesc = styled.div`
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: #555;
+`;
+
+const ExitBtnRow = styled.div`
+  margin-top: 26px;
   display: flex;
   gap: 12px;
+  justify-content: center;
 `;
 
-const ModalBtnGray = styled.button`
+const ExitBtnGray = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #f1f1f1;
-  border-radius: 99px;
+  background: #e7e7e7;
+  border-radius: 10px;
   border: none;
-  color: #7a7a7a;
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 700;
 `;
 
-const ModalBtnYellow = styled.button`
+const ExitBtnYellow = styled.button`
   width: 130px;
   height: 40px;
-  background-color: #ffd342;
-  border-radius: 99px;
+  background: #ffd342;
+  border-radius: 10px;
   border: none;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 700;
 `;

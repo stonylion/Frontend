@@ -23,13 +23,63 @@ const Endwritestep02 = () => {
   const [openExit, setOpenExit] = useState(false);
   const [openEndingModal, setOpenEndingModal] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordStartTime = useRef(null);
 
+  const didFetch = useRef(false);
+
   useEffect(() => {
-    if (!storyId) navigate("/rewrite_end/");
+    if (!storyId) {
+      navigate("/rewrite_end/");
+    }
   }, [storyId, navigate]);
+
+  const loadInitialQuestion = async () => {
+    try {
+      setIsAnimating(true);
+
+      const res = await api.post(
+        `/api/AI/stories/${storyId}/extend-chat/stream/`,
+        {
+          chat_id: null,
+          user_message: "",
+          input_modality: "text",
+        }
+      );
+
+      const { text, chat_id, can_finalize } = res.data;
+
+      setChatId(chat_id);
+      setQuestion(text || "");
+
+      const apiFinalize = !!can_finalize;
+      const textFinalize =
+        text?.includes("확장해도") ||
+        text?.includes("완성해도") ||
+        text?.includes("확장");
+
+      if (apiFinalize || textFinalize) {
+        setOpenEndingModal(true);
+      }
+    } catch (err) {
+      console.error("⚠️ 첫 질문 불러오기 실패:", err);
+      setQuestion("질문을 불러오지 못했어. 다시 말해줄래?");
+    } finally {
+      setIsAnimating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!storyId) return;
+
+    if (!didFetch.current) {
+      didFetch.current = true;
+      loadInitialQuestion();
+    }
+  }, [storyId]);
 
   const startRecording = async () => {
     try {
@@ -48,16 +98,14 @@ const Endwritestep02 = () => {
 
       setIsRecording(true);
       setIsAnimating(true);
-      console.log("🎙 녹음 시작");
     } catch (err) {
-      console.error("❌ 마이크 권한 오류:", err);
+      console.error("⚠️ 마이크 권한 오류:", err);
     }
   };
 
   const stopRecording = async (sendToServer = true) => {
     const now = Date.now();
     if (now - recordStartTime.current < 500) {
-      console.log("⏳ 최소 녹음시간 미달");
       return;
     }
 
@@ -68,7 +116,7 @@ const Endwritestep02 = () => {
         recorder.stop();
         recorder.stream.getTracks().forEach((t) => t.stop());
       } catch (err) {
-        console.error("❌ 녹음 종료 오류:", err);
+        console.error("⚠️ 녹음 종료 오류:", err);
       }
     }
 
@@ -80,10 +128,7 @@ const Endwritestep02 = () => {
   };
 
   const sendVoiceToAI = async () => {
-    if (!audioChunksRef.current.length) {
-      console.warn("⚠ 전송할 오디오 없음");
-      return;
-    }
+    if (!audioChunksRef.current.length) return;
 
     const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
     const file = new File([blob], "voice.webm", { type: "audio/webm" });
@@ -101,19 +146,22 @@ const Endwritestep02 = () => {
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      console.log("📩 Voice AI 질문 응답:", res.data);
+      const { text, chat_id, can_finalize } = res.data;
 
-      setChatId(res.data.chat_id);
-      setQuestion(res.data.text);
+      setChatId(chat_id);
+      setQuestion(text || "");
 
-      const isEndingPrompt =
-        res.data.text?.includes("확장") ||
-        res.data.text?.includes("확장해도") ||
-        res.data.text?.includes("완성해도");
+      const apiFinalize = !!can_finalize;
+      const textFinalize =
+        text?.includes("확장해도") ||
+        text?.includes("완성해도") ||
+        text?.includes("확장");
 
-      if (isEndingPrompt) setOpenEndingModal(true);
+      if (apiFinalize || textFinalize) {
+        setOpenEndingModal(true);
+      }
     } catch (err) {
-      console.error("❌ 질문 생성 실패:", err);
+      console.error("⚠️ 질문 생성 실패:", err);
       setQuestion("질문을 불러오지 못했어. 다시 말해줄래?");
     } finally {
       audioChunksRef.current = [];
@@ -121,6 +169,8 @@ const Endwritestep02 = () => {
   };
 
   const handleExpandEnding = async () => {
+    setLoading(true);
+
     try {
       const res = await api.post(`/api/AI/stories/${storyId}/extend/`, {
         chat_id: chatId,
@@ -133,7 +183,9 @@ const Endwritestep02 = () => {
         },
       });
     } catch (err) {
-      console.error("❌ 결말 확장 실패:", err);
+      console.error("⚠️ 결말 확장 실패:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -169,7 +221,6 @@ const Endwritestep02 = () => {
 
       <ArcArea>
         <Arc />
-
         <DotWrapper>
           {Array.from({ length: 5 }).map((_, i) => (
             <Dot key={i} $delay={i * 0.2} $isAnimating={isAnimating} />
@@ -193,8 +244,10 @@ const Endwritestep02 = () => {
             <EndingTitle>결말을 확장할까요?</EndingTitle>
             <EndingDesc>
               대화가 충분히 진행되었어요!
-              <br />결말을 확장할까요?
+              <br />
+              결말을 확장할까요?
             </EndingDesc>
+
             <EndingBtnRow>
               <EndingBtnGray onClick={handleContinueVoice}>
                 더 대화하기
@@ -206,13 +259,42 @@ const Endwritestep02 = () => {
           </EndingModal>
         </EndingDim>
       )}
+
+      {loading && (
+        <LoadingDim>
+          <LoadingModal>
+            <LoadingTitle>결말을 확장하고 있어요!</LoadingTitle>
+            <LoadingDesc>잠시만 기다려주세요</LoadingDesc>
+          </LoadingModal>
+        </LoadingDim>
+      )}
+
+      {/* 나가기 모달 */}
+      {openExit && (
+        <ExitDim onClick={() => setOpenExit(false)}>
+          <ExitModal onClick={(e) => e.stopPropagation()}>
+            <ExitTitle>앗! 그만두시겠어요?</ExitTitle>
+            <ExitDesc>
+              아직 대화를 완성하기엔 대화가 부족해요.
+              <br />
+              나가면 지금까지의 대화를 되돌릴 수 없어요.
+            </ExitDesc>
+            <ExitBtnRow>
+              <ExitBtnGray onClick={() => navigate("/rewrite_end/")}>
+                나가기
+              </ExitBtnGray>
+              <ExitBtnYellow onClick={() => setOpenExit(false)}>
+                계속 대화하기
+              </ExitBtnYellow>
+            </ExitBtnRow>
+          </ExitModal>
+        </ExitDim>
+      )}
     </Screen>
   );
 };
 
 export default Endwritestep02;
-
-
 
 
 const bounce = keyframes`
@@ -332,9 +414,6 @@ const MicButton = styled(IconButton)`
   }
 `;
 
-/* ============================
-      결말 확장 모달 스타일
-============================ */
 
 const EndingDim = styled.div`
   position: fixed;
@@ -351,13 +430,12 @@ const EndingDim = styled.div`
 
 const EndingModal = styled.div`
   width: 320px;
-  height: 196px;
   background: #ffffff;
   border-radius: 16px;
   padding: 24px 24px 16px 24px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
 `;
 
@@ -379,7 +457,7 @@ const EndingDesc = styled.div`
 const EndingBtnRow = styled.div`
   display: flex;
   gap: 12px;
-  margin-top: 20px;
+  margin-top: 24px;
 `;
 
 const EndingBtnGray = styled.button`
@@ -404,3 +482,88 @@ const EndingBtnYellow = styled.button`
   border: none;
 `;
 
+
+const LoadingDim = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+`;
+
+const LoadingModal = styled.div`
+  width: 260px;
+  padding: 24px;
+  background: white;
+  border-radius: 16px;
+  text-align: center;
+`;
+
+const LoadingTitle = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+`;
+
+const LoadingDesc = styled.div`
+  margin-top: 8px;
+  font-size: 14px;
+  color: #777;
+`;
+
+
+const ExitDim = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+`;
+
+const ExitModal = styled.div`
+  width: 320px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 24px 28px 24px;
+  text-align: center;
+`;
+
+const ExitTitle = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+`;
+
+const ExitDesc = styled.div`
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: #555;
+`;
+
+const ExitBtnRow = styled.div`
+  margin-top: 26px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+`;
+
+const ExitBtnGray = styled.button`
+  width: 130px;
+  height: 40px;
+  background: #e7e7e7;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+`;
+
+const ExitBtnYellow = styled.button`
+  width: 130px;
+  height: 40px;
+  background: #ffd342;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+`;

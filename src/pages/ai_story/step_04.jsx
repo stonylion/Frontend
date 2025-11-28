@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import Header from "../../components/Header.jsx";
 import { useLocation, useNavigate } from "react-router-dom";
+import api from "../../api/axios.js";
 
 const ICON_RIGHT_HEADER = "/icons/new_right_part.svg";
 const ICON_RIGHT = "/img/ai_story/right.svg";
@@ -14,6 +15,35 @@ const Storystep04 = () => {
 
   const [text, setText] = useState(incomingText);
   const [showQuitModal, setShowQuitModal] = useState(false);
+
+  useEffect(() => {
+    const loadDraft = async () => {
+      try {
+        const res = await api.get("/api/story/draft/");
+        if (res.data?.draft) {
+          setText(res.data.draft);
+        }
+      } catch (err) {
+        console.log("⚠ draft 불러오기 오류:", err.response?.data || err);
+      }
+    };
+
+    loadDraft();
+  }, []);
+
+  const handleNext = async () => {
+    if (!text.trim()) return;
+
+    try {
+      await api.put("/api/story/draft/", { text });
+    } catch (err) {
+      console.log("⚠ draft 저장 오류:", err.response?.data || err);
+    }
+
+    navigate("/mystory/ai_story/step05", {
+      state: { text },
+    });
+  };
 
   return (
     <Screen>
@@ -46,17 +76,9 @@ const Storystep04 = () => {
           <ArrowIcon src={ICON_RIGHT} />
         </VoiceText>
 
-        <NextButton
-  disabled={!text.trim()}
-  onClick={() =>
-    navigate("/mystory/ai_story/step05", {
-      state: { text },
-    })
-  }
->
-  다음
-</NextButton>
-
+        <NextButton disabled={!text.trim()} onClick={handleNext}>
+          다음
+        </NextButton>
       </BottomArea>
 
       {showQuitModal && (
