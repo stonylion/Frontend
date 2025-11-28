@@ -21,20 +21,9 @@ function MypageKidDetail() {
         3: '/icons/report-card3.svg',
     };
 
-    const [kids, setKids] = useState([
-        {
-            id: 1,
-            NDWCard: 2,
-            WordCount: 30,
-            topWords: [
-                { id: 1, word: '행복해', count: 12},
-                { id: 2, word: '공룡', count: 10},
-                { id: 3, word: '마법', count: 9},
-                { id: 4, word: '숲', count: 8},
-                { id: 5, word: '모험', count: 7},
-            ]
-        }
-    ]);
+    const [kids, setKids] = useState(null);
+    const [neoData, setNeoData] = useState(null);
+    const [neoOpen, setNeoOpen] = useState(false);
 
     const WordPositions = [
         { top: '109px', left: '74px', width: '44px', height: '64px', color: '#FF8041', wordSize: '16px', countSize: '30px' },
@@ -43,51 +32,6 @@ function MypageKidDetail() {
         { top: '125px', left: '265px', width: '31px', height: '45px', color: '#26C3C6', wordSize: '11px', countSize: '21px' },
         { top: '19px', left: '105px', width: '26px', height: '38px', color: '#4EA5D7', wordSize: '9px', countSize: '18px' },
     ];
-
-    const neoMockData = [
-    {
-        id: 1,
-        trait: "외향성(E)",
-        level: "높음",
-        details: [
-            {
-                label: "사회성",
-                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
-            },
-            {
-                label: "리더십",
-                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
-            }
-        ]
-    },
-    {
-        id: 2,
-        trait: "친화성(A)",
-        level: "중간",
-        details: [
-            {
-                label: "협동성",
-                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
-            },
-            {
-                label: "이타성",
-                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
-            }
-        ]
-    },
-    {
-        id: 3,
-        trait: "성실성(C)",
-        level: "낮음",
-        details: [
-            {
-                label: "계획성",
-                text: "분석결과 영역입니다. 분석결과 영역입니다. 분석결과 영역입니다."
-            }
-        ]
-    }
-];
-
 
     const [goodStories, setGoodStories] = useState([
     {
@@ -144,7 +88,19 @@ const [badStories, setBadStories] = useState([
     const [activeGoodStoryId, setActiveGoodStoryId] = useState(null);
     const [activeBadStoryId, setActiveBadStoryId] = useState(null);
     const [deleteTarget, setDeleteTarget] =useState(null);
-    const [neoOpen, setNeoOpen] = useState(false);
+
+
+    useEffect(() => {
+        const fetchNeo = async () => {
+            try {
+                const response = await api.get('/api/story/personality/analyze/');
+                setNeoData(response.data); 
+            } catch (e) {
+                console.error("NEO 데이터 조회 실패:", e);
+            }
+        };
+        fetchNeo();
+    }, [child_id]);
 
     const handleEdit = () => {
         navigate(`/mypage-kid/${child_id}`);
@@ -313,7 +269,7 @@ const [badStories, setBadStories] = useState([
                 </DetailLabel>
                 {neoOpen && (
                     <Detail>
-                        {neoMockData.map(item => (
+                        {neoData.map(item => (
                         <Box key={item.id}>
                             <Label>
                                 {item.trait}
@@ -341,7 +297,7 @@ const [badStories, setBadStories] = useState([
                     <span>결과예요</span>
                 </ResultLabel>
                 <ResultCard>
-                    <img src={NDWCardMap[kids[0].NDWCard]} />
+                    <img src={NDWCardMap[kids[0].NDWCard] || ''} />
                 </ResultCard>
                 <WordProgress>
                     <ReportLabel>고유 단어 사용률(NDW)</ReportLabel>
