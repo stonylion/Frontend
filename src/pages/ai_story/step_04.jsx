@@ -12,11 +12,14 @@ const Storystep04 = () => {
   const location = useLocation();
 
   const incomingText = location.state?.text || "";
+  const source = location.state?.source || "text";
 
   const [text, setText] = useState(incomingText);
   const [showQuitModal, setShowQuitModal] = useState(false);
 
   useEffect(() => {
+    if (source !== "voice") return;
+
     const loadDraft = async () => {
       try {
         const res = await api.get("/api/story/draft/");
@@ -29,7 +32,7 @@ const Storystep04 = () => {
     };
 
     loadDraft();
-  }, []);
+  }, [source]);
 
   const handleNext = async () => {
     if (!text.trim()) return;
@@ -107,7 +110,6 @@ const Storystep04 = () => {
 };
 
 export default Storystep04;
-
 
 
 const Screen = styled.div`

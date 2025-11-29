@@ -9,17 +9,17 @@ const ICON_RIGHT = "/img/ai_story/right.svg";
 const Storystep03 = () => {
   const navigate = useNavigate();
   const [text, setText] = useState("");
-  const [isFocused, setIsFocused] = useState(false); // 포커스 여부
+  const [isFocused, setIsFocused] = useState(false);
   const [showQuitModal, setShowQuitModal] = useState(false);
 
-  const isRed = isFocused && text.trim().length < 50; // 클릭 + 50자 미만
-  const isYellow = text.trim().length >= 50; // 50자 이상
+  const isRed = isFocused && text.trim().length < 50;
+  const isYellow = text.trim().length >= 50;
 
   const handleNext = () => {
     if (!isYellow) return;
 
     navigate("/mystory/ai_story/step04", {
-      state: { text }, // 데이터 자동 전달 다음 페이지로
+      state: { text, source: "text" }
     });
   };
 
@@ -92,6 +92,7 @@ const Storystep03 = () => {
 };
 
 export default Storystep03;
+
 
 
 const Screen = styled.div`
