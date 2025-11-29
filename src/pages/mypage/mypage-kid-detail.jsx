@@ -16,14 +16,15 @@ function MypageKidDetail() {
     };
 
     const NDWCardMap = {
-        1: '/icons/report-card1.svg',
-        2: '/icons/report-card2.svg',
-        3: '/icons/report-card3.svg',
+        'Level 1': '/icons/report-card1.svg',
+        'Level 2': '/icons/report-card2.svg',
+        'Level 3': '/icons/report-card3.svg',
     };
 
     const [kids, setKids] = useState(null);
     const [neoData, setNeoData] = useState(null);
     const [neoOpen, setNeoOpen] = useState(false);
+    const [ndwData, setNdwData] = useState(null);
 
     const WordPositions = [
         { top: '109px', left: '74px', width: '44px', height: '64px', color: '#FF8041', wordSize: '16px', countSize: '30px' },
@@ -33,54 +34,16 @@ function MypageKidDetail() {
         { top: '19px', left: '105px', width: '26px', height: '38px', color: '#4EA5D7', wordSize: '9px', countSize: '18px' },
     ];
 
-    const [goodStories, setGoodStories] = useState([
-    {
-        id: 1,
-        title: "좋은 동화 1",
-        runtime: "5분",
-        img: "/icons/book1.svg",
-        created_at: "2025-11-25"
-    },
-    {
-        id: 2,
-        title: "좋은 동화 2",
-        runtime: "7분",
-        img: "/icons/book2.svg",
-        created_at: "2025-11-20"
-    },
-    {
-        id: 3,
-        title: "좋은 동화 1",
-        runtime: "5분",
-        img: "/icons/book1.svg",
-        created_at: "2025-11-25"
-    },
-    {
-        id: 4,
-        title: "좋은 동화 2",
-        runtime: "7분",
-        img: "/icons/book2.svg",
-        created_at: "2025-11-20"
-    }
-]);
+    const traitLabelMap = {
+        E: "외향성(E)",
+        O: "개방성(O)",
+        A: "친화성(A)",
+        C: "성실성(C)",
+        N: "신경증(N)"
+    };
 
-const [badStories, setBadStories] = useState([
-    {
-        id: 3,
-        title: "아쉬운 동화 1",
-        runtime: "6분",
-        img: "/icons/book3.svg",
-        created_at: "2025-11-18"
-    },
-    {
-        id: 4,
-        title: "아쉬운 동화 2",
-        runtime: "8분",
-        img: "/icons/book4.svg",
-        created_at: "2025-11-22"
-    }
-]);
-
+    const [goodStories, setGoodStories] = useState([]);
+    const [badStories, setBadStories] = useState([]);
     const [nickname, setNickname] = useState('');
     const [birth, setBirth] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState(avatarMap.child1);
@@ -88,19 +51,6 @@ const [badStories, setBadStories] = useState([
     const [activeGoodStoryId, setActiveGoodStoryId] = useState(null);
     const [activeBadStoryId, setActiveBadStoryId] = useState(null);
     const [deleteTarget, setDeleteTarget] =useState(null);
-
-
-    useEffect(() => {
-        const fetchNeo = async () => {
-            try {
-                const response = await api.get('/api/story/personality/analyze/');
-                setNeoData(response.data); 
-            } catch (e) {
-                console.error("NEO 데이터 조회 실패:", e);
-            }
-        };
-        fetchNeo();
-    }, [child_id]);
 
     const handleEdit = () => {
         navigate(`/mypage-kid/${child_id}`);
@@ -114,9 +64,14 @@ const [badStories, setBadStories] = useState([
         setActiveBadStoryId(activeBadStoryId === id ? null : id);
     };
 
-    const playBook = (story) => console.log('재생', story.title);
+    const playBook = (story) => {
+        navigate(`/story-player/${story.id}`, {
+            state: {
+                storyTitle: story.title
+            }
+        });
+    };
     const viewScript = async (story) => {
-        /*
         try {
             const response = await api.get(`/api/story/${story.id}/script/`);
             console.log("스크립트 조회 성공:", response.data);
@@ -125,38 +80,6 @@ const [badStories, setBadStories] = useState([
         } catch (e) {
             console.error("스크립트 조회 실패:", e);
         }
-        */
-    };
-    const deleteBook = (story) => {
-        setDeleteTarget(story);
-        handleDelete();
-    };
-
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-    const handleDelete = () => {
-        setShowDeleteModal(true);
-    };
-    const confirmDelete = async () => {
-        /*
-        if (!deleteTarget) return;
-
-        try {
-            const response = await api.delete(`/api/mylibrary/${deleteTarget.id}/`);
-            console.log("동화 삭제 성공:", response.data);
-
-            setMyStories(prev => prev.filter(story => story.id !== deleteTarget.id));
-            setReWriteStories(prev => prev.filter(story => story.id !== deleteTarget.id));
-
-            setShowDeleteModal(false);
-            setDeleteTarget(null);
-        } catch (e) {
-            console.error("동화 삭제 실패:", e);
-        }
-        */
-    };
-    const cancelDelete = () => {
-        setShowDeleteModal(false);
     };
 
     const formatDate = (createdAt) => {
@@ -185,7 +108,100 @@ const [badStories, setBadStories] = useState([
         fetchMypageKid();
     }, [child_id]);
 
+    useEffect(() => {
+        const fetchNeo = async () => {
+            try {
+                const response = await api.post('/api/story/personality/analyze/');
+                setNeoData(response.data); 
+            } catch (e) {
+                console.error("NEO 데이터 조회 실패:", e);
+            }
+        };
+        fetchNeo();
+    }, [child_id]);
+
     const toggleNeo = () => setNeoOpen(prev => !prev);
+
+    useEffect(() => {
+        const fetchNDWData = async () => {
+            try {
+                const response = await api.get('/api/story/language/report/monthly');
+                console.log('NDW 리포트 조회 성공:', response.data);
+
+                setNdwData(response.data);
+            } catch (e) {
+                console.log('NDW 리포트 조회 실패:', e);
+            }
+        };
+        fetchNDWData();
+    }, []);
+
+    useEffect(() => {
+        const fetchLikedStory = async () => {
+            try {
+                const response = await api.get('/api/story/reactions/like/', { params: { child_id: child_id }});
+                console.log('좋아요한 동화 리스트 조회 성공:', response.data);
+
+                const storiesWithCover = await Promise.all(
+                    response.data.results.map(async (item) => {
+                        const story = item;
+                        if (!story.cover) {
+                            try {
+                                const coverRes = await api.get(`/api/story/${story.id}/`);
+                                story.cover = coverRes.data.cover;
+                            } catch (e) {
+                                console.error('동화 표지 조회 실패:', e);
+                                story.cover = '/icons/book1.svg';
+                            }
+                        }
+                        return {
+                            ...item,
+                            story
+                        };
+                    })
+                );
+                setGoodStories(storiesWithCover);
+            } catch (e) {
+                console.error('좋아요한 동화 리스트 조회 실패:', e);
+            }
+        };
+
+        fetchLikedStory();
+    }, [child_id]);
+
+    useEffect(() => {
+        const fetchDisLikedStory = async () => {
+            try {
+                const response = await api.get('/api/story/reactions/dislike/', { params: { child_id: child_id }});
+                console.log('아쉬워요한 동화 리스트 조회 성공:', response.data);
+
+                const storiesWithCover = await Promise.all(
+                    response.data.results.map(async (item) => {
+                        const story = item.story;
+                        if (!story.cover) {
+                            try {
+                                const coverRes = await api.get(`/api/story/${story.id}/`);
+                                story.cover = coverRes.data.cover;
+                            } catch (e) {
+                                console.error('동화 표지 조회 실패:', e);
+                                story.cover = '/icons/book1.svg';
+                            }
+                        }
+                        return {
+                            ...item,
+                            story
+                        };
+                    })
+                );
+
+                setBadStories(storiesWithCover);
+            } catch (e) {
+                console.error('아쉬워요한 동화 리스트 조회 실패:', e);
+            }
+        };
+
+        fetchDisLikedStory();
+    }, [child_id]);
 
     return (
         <Wrapper>
@@ -257,7 +273,7 @@ const [badStories, setBadStories] = useState([
                     <span>결과예요</span>
                 </ResultLabel>
                 <Pentagon>
-                    <img src='/imges/pentagon1.svg' />
+                    <img src='/imges/pentagon_.svg' />
                 </Pentagon>
                 <AnalysisComent>AI가 아이의 대화 내용을 분석해 산출한 참고용 결과로,<br />보다 정확한 성격 검사를 원할 시, 정식 검사를 권장드립니다.</AnalysisComent>
                 <DetailLabel onClick={toggleNeo}>
@@ -267,26 +283,34 @@ const [badStories, setBadStories] = useState([
                         width={16} 
                     />
                 </DetailLabel>
-                {neoOpen && (
+                {neoOpen && neoData && (
                     <Detail>
-                        {neoData.map(item => (
-                        <Box key={item.id}>
+                        {Object.entries(neoData.rationale).map(([traitKey, traitData]) => (
+                        <Box key={traitKey}>
+                            {/* traitKey를 한글로 변환 */}
                             <Label>
-                                {item.trait}
-                                <Badge>{item.level}</Badge>
+                                <LabelC>{traitLabelMap[traitKey]}</LabelC>
+                                <Badge>{neoData.result[traitKey]}</Badge>
                             </Label>
-                            {item.details.map((d, idx) => (
-                            <NEOcontent key={idx}>
-                                <NEOcontents>
-                                    <ContentsLabel>{d.label}</ContentsLabel>
-                                    <NEOcontentstext>{d.text}</NEOcontentstext>
-                                </NEOcontents>
-                            </NEOcontent>
-                            ))}
+
+                            {/* 하위요인 순회 */}
+                            {Object.entries(traitData.하위요인_판정).map(
+                                ([subTrait]) => (
+                                    <NEOcontent key={subTrait}>
+                                        <NEOcontents>
+                                            <ContentsLabel>{subTrait}</ContentsLabel>
+                                            <NEOcontentstext>
+                                                {neoData.report}
+                                            </NEOcontentstext>
+                                        </NEOcontents>
+                                    </NEOcontent>
+                                )
+                            )}
                         </Box>
                         ))}
                     </Detail>
                 )}
+
                 <Line></Line>
             </NEO>
 
@@ -297,16 +321,22 @@ const [badStories, setBadStories] = useState([
                     <span>결과예요</span>
                 </ResultLabel>
                 <ResultCard>
-                    <img src={NDWCardMap[kids[0].NDWCard] || ''} />
+                    <img src={NDWCardMap[ndwData?.level?.level_number] || ''} />
                 </ResultCard>
                 <WordProgress>
                     <ReportLabel>고유 단어 사용률(NDW)</ReportLabel>
                     <WordProgressBar>
-                        <WordProgressFill style={{ width: `${(kids[0].WordCount / 100) * 100}%` }}></WordProgressFill>
+                        <WordProgressFill
+                            style={{
+                                width: ndwData?.monthly_statistics
+                                    ? `${(ndwData.monthly_statistics.avg_ndw / ndwData.monthly_statistics.avg_total_tokens) * 100}%`
+                                    : '0%'
+                                }}>
+                            </WordProgressFill>
                     </WordProgressBar>
                     <WordCount>
-                        <p>{kids[0].WordCount}개</p>
-                        <p style={{ color: '#bbb' }}>100개</p>
+                        <p>{ndwData?.monthly_statistics?.avg_ndw}개</p>
+                        <p style={{ color: '#bbb' }}>{ndwData?.monthly_statistics?.avg_total_tokens}개</p>
                     </WordCount>
                     <WordLabel>
                         <p>고유 단어 수 (평균)</p>
@@ -320,9 +350,9 @@ const [badStories, setBadStories] = useState([
                             src='/icons/circle-5.svg'
                             style={{ position: 'relative' }}
                         />
-                        {kids[0].topWords.map((word, index) => (
+                        {ndwData?.top_words?.map((word, index) => (
                             <CircleContents
-                                key={word.id}
+                                key={index}
                                 style={{
                                     top: WordPositions[index].top,
                                     left: WordPositions[index].left,
@@ -355,30 +385,30 @@ const [badStories, setBadStories] = useState([
                         <Empty2><img src='/icons/empty2.svg' /></Empty2>
                     ) : (
                         <ScrollArea>
-                        {goodStories.map((story) => (
-                            <CreatedContainer key={story.id} onClick={() => handleGoodStoryClick(story.id)}>
-                                    {activeGoodStoryId === story.id ? (
+                        {goodStories.map((item) => (
+                            <CreatedContainer key={item.story.id} onClick={() => handleGoodStoryClick(item.story.id)}>
+                                    {activeGoodStoryId === item.id ? (
                                         <OptionCard
-                                            $imgUrl={story.img}
+                                            $imgUrl={item.story.cover}
                                             onClick={e => e.stopPropagation()}
                                         >
                                             <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveGoodStoryId(null); }}>×</CloseBtn>
-                                            <Option onClick={() => playBook(story)}>재생하기</Option>
-                                            <Option onClick={() => viewScript(story)}>스크립트 보기</Option>
-                                            <Option onClick={() => deleteBook(story)}>삭제하기</Option>
+                                            <Option onClick={() => playBook(item)}>재생하기</Option>
+                                            <Option onClick={() => viewScript(item)}>스크립트 보기</Option>
+                                            {/*<Option onClick={() => deleteBook(story)}>삭제하기</Option>*/}
                                         </OptionCard>
                                     ) : (
                                         <>
                                             <BookWrapper>
-                                                <img src={story.img} />
+                                                <img src={item.story.cover} />
                                             </BookWrapper>
                                         </>
                                     )}
-                                <CreatedTitle>{story.title}</CreatedTitle>
+                                <CreatedTitle>{item.story.title}</CreatedTitle>
                                 <CreatedMin>
-                                    {story.runtime}
+                                    {item.story.runtime}
                                     <Separator>|</Separator>
-                                    {formatDate(story.created_at)}
+                                    {formatDate(item.story.created_at)}
                                 </CreatedMin>
                             </CreatedContainer>
                         ))}
@@ -392,30 +422,30 @@ const [badStories, setBadStories] = useState([
                         <Empty2><img src='/icons/empty2.svg' /></Empty2>
                     ) : (
                         <ScrollArea>
-                        {badStories.map((story) => (
-                            <CreatedContainer key={story.id} onClick={() => handleBadStoryClick(story.id)}>
-                                    {activeBadStoryId === story.id ? (
+                        {badStories.map((item) => (
+                            <CreatedContainer key={item.story.id} onClick={() => handleBadStoryClick(item.story.id)}>
+                                    {activeBadStoryId === item.id ? (
                                         <OptionCard
-                                            $imgUrl={story.img}
+                                            $imgUrl={item.story.cover}
                                             onClick={e => e.stopPropagation()}
                                         >
                                             <CloseBtn onClick={(e) => { e.stopPropagation(); setActiveBadStoryId(null); }}>×</CloseBtn>
-                                            <Option onClick={() => playBook(story)}>재생하기</Option>
-                                            <Option onClick={() => viewScript(story)}>스크립트 보기</Option>
-                                            <Option onClick={() => deleteBook(story)}>삭제하기</Option>
+                                            <Option onClick={() => playBook(item)}>재생하기</Option>
+                                            <Option onClick={() => viewScript(item)}>스크립트 보기</Option>
+                                            {/*<Option onClick={() => deleteBook(story)}>삭제하기</Option>*/}
                                         </OptionCard>
                                     ) : (
                                         <>
                                             <BookWrapper>
-                                                <img src={story.img} />
+                                                <img src={item.story.cover} />
                                             </BookWrapper>
                                         </>
                                     )}
-                                <CreatedTitle>{story.title}</CreatedTitle>
+                                <CreatedTitle>{item.story.title}</CreatedTitle>
                                 <CreatedMin>
-                                    {story.runtime}
+                                    {item.story.runtime}
                                     <Separator>|</Separator>
-                                    {formatDate(story.created_at)}
+                                    {formatDate(item.story.created_at)}
                                 </CreatedMin>
                             </CreatedContainer>
                         ))}
@@ -425,7 +455,7 @@ const [badStories, setBadStories] = useState([
             </Custom>
         </Contents>
 
-        {showDeleteModal && (
+        {/*showDeleteModal && (
             <ModalOverlay>
                 <ModalBox>
                     <ModalHeader>정말 삭제하시겠어요?</ModalHeader>
@@ -436,7 +466,7 @@ const [badStories, setBadStories] = useState([
                     </ModalBtnContainer>
                 </ModalBox>
             </ModalOverlay>
-        )}
+        )*/}
         </Wrapper>
     );
 }
@@ -622,6 +652,9 @@ const ResultLabel = styled.div`
 const Pentagon = styled.div`
     width: 358px;
     height: 220px;
+    justify-content: center;
+    display: flex;
+    align-items: center;
 `
 
 const AnalysisComent = styled.div`
@@ -965,7 +998,6 @@ const CircleContents = styled.div`
     padding: 0;
 `
 const Detail = styled.div`
-    height: 1606px;
     width: 358px;
     display: flex;
 padding: 16px;
@@ -986,14 +1018,22 @@ const Box = styled.div`
 
 const NEOcontent = styled.div`
     width: 242px;
-    
+
 `
 const Label = styled.div`
     display: flex;
     gap: 8px;
     color: #000;
     text-align: center;
-    font-family: "SOYO Maple TTF";
+    font-size: 20px;
+    font-weight: 700;
+`
+
+const LabelC = styled.div`
+    display: flex;
+    gap: 8px;
+    color: #000;
+    text-align: center;
     font-size: 20px;
     font-weight: 700;
 `
@@ -1009,6 +1049,18 @@ text-align: center;
 font-family: NanumSquareRound;
 font-size: 12px;
 font-weight: 800;
+border-radius: 99999px;
+background: #F1F1F1;
+color: #626262;
+
+&::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    background-color: #626262;
+    border-radius: 50%;
+    display: inline-block;
+}
 `
 
 const NEOcontents = styled.div`
@@ -1020,12 +1072,18 @@ const NEOcontents = styled.div`
 const ContentsLabel = styled.div`
     display: flex;
 width: 72px;
-padding: 4px 10px;
 justify-content: center;
 align-items: center;
 gap: 10px;
 border-radius: 8px;
 background: #F1F1F1;
+display: flex;
+justify-content: center;
+align-items: center;
+color: #7a7a7a;
+font-family: NanumSquareRound;
+font-size: 14px;
+font-weight: 700;
 `
 
 const NEOcontentstext = styled.div`
@@ -1033,7 +1091,6 @@ const NEOcontentstext = styled.div`
     min-height: 44px;
 flex: 1 0 0;
 color:  #393939;
-
 font-family: NanumSquareRound;
 font-size: 14px;
 font-weight: 400;

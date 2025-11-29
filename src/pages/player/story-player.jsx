@@ -4,7 +4,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import Button from '../../components/Button';
 
-const CustomEnding = ({ navigate, handleReplay, vote, setVote, sendLastPage }) => (
+const CustomEnding = ({ navigate, handleReplay, child_id, storyTitle, vote, handleVote, sendLastPage }) => (
     <EndingOverlay>
         <TopBar>
             <LeftGroup onClick={(e) => e.stopPropagation()}>
@@ -12,15 +12,15 @@ const CustomEnding = ({ navigate, handleReplay, vote, setVote, sendLastPage }) =
                     src='/icons/Leftpart-white.svg'
                     onClick={() => navigate('/mylib')}
                 />
-                <Title>동화 제목을 입력해주세요</Title>
+                <Title>{storyTitle}</Title>
             </LeftGroup>
         </TopBar>
         <CustomTitle>이야기가 어땠는지 알려주세요</CustomTitle>
         <VoteContainer>
-            <Good onClick={() => setVote('good')}>
+            <Good onClick={() => handleVote('good')}>
                 <img src={vote === 'good' ? '/imges/Good-active.svg' : '/imges/Good.svg'} />
             </Good>
-            <Bad onClick={() => setVote('bad')}>
+            <Bad onClick={() => handleVote('bad')}>
                 <img src={vote === 'bad' ? '/imges/Bad-active.svg' : '/imges/Bad.svg'} />
             </Bad>
         </VoteContainer>
@@ -95,7 +95,7 @@ const ClassicEnding = ({ navigate, handleReplay, storyId, storyTitle, sendLastPa
     </EndingOverlay>
 );
 
-const ExtendedEnding = ({ navigate, handleReplay, sendLastPage }) => (
+const ExtendedEnding = ({ navigate, handleReplay, sendLastPage, storyTitle }) => (
     <EndingOverlay>
         <TopBar>
             <LeftGroup onClick={(e) => e.stopPropagation()}>
@@ -103,7 +103,7 @@ const ExtendedEnding = ({ navigate, handleReplay, sendLastPage }) => (
                     src='/icons/Leftpart-white.svg'
                     onClick={() => navigate('/mylib')}
                 />
-                <Title>동화 제목을 입력해주세요</Title>
+                <Title>{storyTitle}</Title>
             </LeftGroup>
         </TopBar>
         <EndingButton
@@ -162,7 +162,11 @@ function StoryPlayer() {
     const [author, setAuthor] = useState(null);
     const [category, setCategory] = useState('classic');
     const [previewAudio, setPreviewAudio] = useState(null);
+    const [childId, setChildId] = useState(null);
     const isLastPage = selectedImg === pages.length - 1;
+    const [ttsCache, setTtsCache] = useState({}); // key: 페이지 번호, value: tts URL
+    const [isPaused, setIsPaused] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
 
     // 🍅 Mylib에서 온 story.category 기준으로 endingType 설정: 결말 확장에서 필요
     useEffect(() => {
@@ -257,6 +261,19 @@ function StoryPlayer() {
         }
     };
 
+    useEffect(() => {
+        const fetchActiveChild = async () => {
+            try {
+                const response = await api.get('/api/accounts/children/');
+                const activeChild = response.data.children.find(c => c.is_active);
+                if (activeChild) setChildId(activeChild.child_id);
+            } catch (err) {
+                console.error('활성화 아이 조회 실패:', err);
+            }
+        };
+        fetchActiveChild();
+    }, []);
+
     const renderEndingOverlay = () => {
         if (!isLastPage || !showEndingOverlay) return null;
 
@@ -269,6 +286,9 @@ function StoryPlayer() {
                         vote={vote}
                         setVote={setVote}
                         sendLastPage={sendLastPage}
+                        storyTitle={storyTitle}
+                        handleVote={handleVote}
+                        child_id={childId}
                     />
                 );
             case 'classic':
@@ -287,6 +307,7 @@ function StoryPlayer() {
                         navigate={navigate}
                         handleReplay={handleReplay}
                         sendLastPage={sendLastPage}
+                        storyTitle={storyTitle}
                     />
                 );
             default:
@@ -352,13 +373,203 @@ function StoryPlayer() {
             setTypeOn(false);
         }
     }, [step]);
-
-    const togglePlay = () => {
-        if (playOn) {
-            handleStopVoice();
-        } else {
-            handleStartVoice();
+/*
+    useEffect(() => {
+        if (voices.length > 0 && !selectedVoice) {
+            setSelectedVoice(voices[0]);
         }
+    }, [voices]);
+*/
+    useEffect(() => {
+    if (!isPaused && selectedVoice && currentPage) {
+        playPageTTS(currentPage, selectedImg, true); // isAuto = true
+    }
+}, [selectedImg, currentPage, selectedVoice, isPaused]);
+
+
+
+    const playAudio = (url) => {
+        if (!url) return;
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.play().catch(err => { if (err.name !== 'AbortError') console.error(err); });
+        setIsPlaying(true);
+        audio.onended = () => setIsPlaying(false);
+    };
+
+    const stopAudio = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+        setIsPlaying(false);
+    };
+
+
+    // case1: 오버레이 안내용
+const playOverlayTTS = async () => {
+    if (!selectedVoice) return;
+
+    const payload = {
+        voice_id: selectedVoice.id,
+        title: storyTitle,
+        author: author,
+        pages: [
+            {
+                page: 0,
+                text: ""
+            }  // case1
+        ]
+    };
+
+    console.log('TTS 요청 payload:', payload);
+
+    try {
+        const response = await api.post('/api/story/user/voice/tts/', payload);
+        console.log('오버레이 TTS URL:', response.data.tts_audio_url);
+        playAudio(response.data.tts_audio_url);
+    } catch (err) {
+        console.error('오버레이 TTS 실패:', err);
+    }
+};
+
+// case2: 페이지별 재생용
+// 페이지별 TTS
+const playPageTTS = async (pageIndex) => {
+    if (!selectedVoice || !pages[pageIndex]) return;
+
+    const pageNum = pageIndex + 1;
+
+    // 캐시 있으면 바로 재생
+    if (ttsCache[pageNum]) {
+        playAudio(ttsCache[pageNum]);
+        return;
+    }
+
+    const payload = {
+        voice_id: selectedVoice.id,
+        pages: [{ page: pageNum, text: pages[pageIndex].type }]
+    };
+
+    try {
+        const response = await api.post('/api/story/user/voice/tts/', payload);
+        setTtsCache(prev => ({ ...prev, [pageNum]: response.data.tts_audio_url }));
+        playAudio(response.data.tts_audio_url);
+    } catch (err) {
+        console.error('페이지 TTS 실패:', err);
+    }
+};
+
+    // 오버레이 안내 step 0,1
+    useEffect(() => {
+        if (step < 2 && selectedVoice) {
+            playOverlayTTS();
+        }
+    }, [step, selectedVoice]);
+
+    // 페이지 변경 시
+    useEffect(() => {
+        if (step >= 2 && selectedVoice && currentPage) {
+            playPageTTS(currentPage);
+        }
+    }, [selectedImg, selectedVoice, step, currentPage]);
+
+    useEffect(() => {
+        console.log('currentPage 변경', currentPage);
+    }, [currentPage]);
+
+    // Audio 재생 함수
+        const playNewTTS = (url) => {
+            if (!url) return;
+
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.play().then(() => setIsPlaying(true));
+
+            audio.onended = () => {
+                setIsPlaying(false); // 재생 끝나도 멈춤 아이콘으로 바꾸지 않음
+            };
+        };
+
+        // 페이지별 TTS 재생
+        const playCurrentPageTTS = async () => {
+        if (!selectedVoice || !currentPage) return;
+
+        const payload = {
+            voice_id: selectedVoice.id,
+            pages: [
+                {
+                    page: selectedImg + 1,
+                    text: currentPage.type
+                }
+            ]
+        };
+
+        try {
+            const response = await api.post('/api/story/user/voice/tts/', payload);
+            console.log('받은 TTS URL:', response.data.tts_audio_url);
+            playNewTTS(response.data.tts_audio_url);
+        } catch (err) {
+            console.error('TTS 생성 실패:', err);
+        }
+    };
+
+useEffect(() => {
+    if (!selectedVoice) return;
+
+    // step < 2: 오버레이 안내 TTS
+    if (step < 2) {
+        playOverlayTTS();
+    } 
+    // step >= 2: 페이지 TTS
+    else if (currentPage) {
+        playPageTTS(selectedImg);
+    }
+}, [selectedImg, currentPage, selectedVoice, step]);
+
+
+    // 자동 재생
+    useEffect(() => {
+        if (isAutoPlay && selectedVoice && currentPage) {
+            playCurrentPageTTS();
+        }
+    }, [currentPage, selectedVoice, isAutoPlay]);
+
+    // 재생/일시정지 버튼
+    const togglePlay = () => {
+    if (isPlaying) {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+        setIsPaused(true);
+        setIsPlaying(false);
+    } else {
+        setIsPaused(false);
+        if (currentPage) playPageTTS(currentPage, selectedImg);
+    }
+};
+
+    // 미리듣기
+    const handlePreviewVoice = (voice) => {
+        if (previewAudio) {
+            previewAudio.pause();
+            previewAudio.currentTime = 0;
+        }
+        const audio = new Audio(voice.audio);
+        audio.play().catch(err => {
+            if (err.name !== 'AbortError') console.error(err);
+        });
+        setPreviewAudio(audio);
     };
 
     const playTTS = async () => {
@@ -366,8 +577,6 @@ function StoryPlayer() {
 
         const payload = {
             voice_id: selectedVoice.id,
-            title: storyTitle,
-            author: author,
             pages: pages.map((p, idx) => ({
                 page: idx + 1,
                 text: p.type
@@ -376,65 +585,24 @@ function StoryPlayer() {
 
         try {
             const response = await api.post('/api/story/user/voice/tts/', payload);
-            const audio = new Audio(response.data.audio_url);
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
-            }
-            audioRef.current = audio;
-            audio.play().catch(err => {
-                if (err.name !== 'AbortError') console.error(err);
-            });
-            setPlayOn(true);
-            setIsAutoPlay(true);
-        } catch (err) {
-            console.error('TTS 재생 요청 실패:', err);
-        }
-    };
 
-    const handlePreviewVoice = (voice) => {
-        if (previewAudio) {
-            previewAudio.pause();
-            previewAudio.currentTime = 0;
+        // 이전 재생 중인 오디오 종료
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
         }
 
-        const audio = new Audio(voice.audio);
+        const audio = new Audio(response.data.audio_url);
+        audioRef.current = audio;
         audio.play().catch(err => {
             if (err.name !== 'AbortError') console.error(err);
         });
 
-        setPreviewAudio(audio);
-    };
-
-    const handleStopVoice = () => {
-        setPlayOn(false);
-        setIsAutoPlay(false);
-        if(audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-    };
-
-
-const handleSelectedVoice = (voice) => {
-    // 모달 안에서 미리듣기
-    if (!currentPage) return;
-
-    // 기존 재생 종료
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
+        setPlayOn(true);
+        setIsAutoPlay(true);
+    } catch (err) {
+        console.error('TTS 재생 요청 실패:', err);
     }
-
-    // 새로운 음성 재생
-    const audio = new Audio(voice.audio);
-    audioRef.current = audio;
-    audio.play().catch(err => {
-        if (err.name !== 'AbortError') console.error(err);
-    });
-
-    // 선택한 목소리 저장
-    setSelectedVoice(voice);
 };
 
 // 모달 닫힐 때 미리듣기 멈추기
@@ -466,7 +634,7 @@ const handleSelectedVoice = (voice) => {
 
     const sendLastPage = async () => {
         try {
-            await api.post('api/mylibrary/last-viewed/', {
+            await api.post('/api/mylibrary/last-viewed/', {
                 story_id: story_id,
                 page_number: selectedImg + 1,
             });
@@ -481,6 +649,23 @@ const handleSelectedVoice = (voice) => {
             playTTS();
         }
     }, [currentPage]);
+
+    const handleVote = async (type) => {
+        const reactionMap = { good: 'like', bad: 'dislike' };
+        const newVote = vote === type ? null : type;
+        setVote(newVote);
+
+        try {
+            const response = await api.post(`/api/story/${story_id}/reaction/`, {
+                child_id: childId,
+                reaction: newVote ? reactionMap[newVote] : null,
+            });
+            console.log('반응 저장 완료:', response.data);
+        } catch (e) {
+            console.error('반응 저장 실패:', e);
+            setVote(null);
+        }
+    };
 
     return (
         <Wrapper onClick={handleTap}>
